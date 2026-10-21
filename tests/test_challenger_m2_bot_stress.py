@@ -19,7 +19,7 @@ Covers deep adversarial stress-testing of:
    - Deposit FSM validations, overdraft rejection, cancel flows, and atomic execution.
    - Withdrawal FSM validations, limit rejection, cancel flows, and atomic execution.
    - Interest payout execution and double-tap duplicate prevention.
-4. Full Bot Router, Common Commands & Oleg Integration.
+4. Full Bot Router & Common Commands Integration.
 """
 
 import datetime
@@ -47,7 +47,6 @@ from app.bot.routers.common import (
     handle_help,
     handle_start,
 )
-from app.bot.routers.oleg import handle_oleg_dialogue, handle_oleg_prompt
 from app.bot.routers.savings import (
     handle_savings_deposit_prompt,
     handle_savings_menu,
@@ -817,11 +816,11 @@ class TestSavingsRouterChallengerStress:
 
 
 # ==============================================================================
-# Suite 4: Full Bot Integration, Commands, Analytics, and Oleg
+# Suite 4: Full Bot Integration, Commands, and Analytics
 # ==============================================================================
 
-class TestBotIntegrationCommandsAndOleg:
-    """Verify common navigation, analytics formatter, Oleg assistant, and factories."""
+class TestBotIntegrationCommands:
+    """Verify common navigation, analytics formatter, and factories."""
 
     @pytest.mark.asyncio
     async def test_common_start_help_analytics(
@@ -844,33 +843,6 @@ class TestBotIntegrationCommandsAndOleg:
         msg_analytics = message_factory("/analytics", user_id=sample_user.telegram_id)
         await handle_analytics(msg_analytics, session=async_session, user=sample_user)
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "query_text",
-        [
-            "Какой у меня баланс?",
-            "Переведи 500 рублей",
-            "Какой у меня кэшбэк?",
-            "Оформи мне кредит",
-            "Что купить из акций?",
-            "Заблокируй карту",
-            "Ты кто такой?",
-            "Спасибо большое!",
-            "Как пожарить стейк из лосося?",
-        ],
-    )
-    async def test_oleg_dialogue_all_intents(
-        self,
-        query_text,
-        mock_bot,
-        message_factory,
-        async_session,
-        sample_user,
-    ):
-        """Verify assistant Oleg evaluates text input across all intents without crashing."""
-        msg = message_factory(query_text, user_id=sample_user.telegram_id)
-        await handle_oleg_dialogue(msg, session=async_session, user=sample_user)
-
     def test_keyboards_structure(self):
         """Verify all reply and inline keyboards contain expected buttons and callbacks."""
         main_kb = get_main_menu_keyboard()
@@ -881,7 +853,7 @@ class TestBotIntegrationCommandsAndOleg:
         assert "📈 Инвестиции" in buttons
         assert "🎁 Кэшбэк" in buttons
         assert "📊 Аналитика" in buttons
-        assert "💬 Олег" in buttons
+        assert "💬 Олег" not in buttons
 
         cancel_kb = get_cancel_reply_keyboard()
         assert cancel_kb.keyboard[0][0].text == "❌ Отмена"
@@ -907,7 +879,6 @@ class TestBotIntegrationCommandsAndOleg:
         from app.bot.routers.cashback import cashback_router
         from app.bot.routers.common import common_router
         from app.bot.routers.invest import invest_router
-        from app.bot.routers.oleg import oleg_router
         from app.bot.routers.savings import savings_router
         from app.bot.routers.transfer import transfer_router
 
@@ -919,7 +890,6 @@ class TestBotIntegrationCommandsAndOleg:
             savings_router,
             invest_router,
             cashback_router,
-            oleg_router,
         ]:
             r._parent_router = None
 
@@ -931,7 +901,7 @@ class TestBotIntegrationCommandsAndOleg:
         assert "savings_router" in router_names
         assert "invest_router" in router_names
         assert "cashback_router" in router_names
-        assert "oleg_router" in router_names
+        assert "oleg_router" not in router_names
 
         bot = create_bot()
         assert bot is not None

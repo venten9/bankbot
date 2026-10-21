@@ -33,8 +33,8 @@ class TestChallengerGate2DispatcherStress:
             assert "savings_router" in sub_router_names
             assert "invest_router" in sub_router_names
             assert "cashback_router" in sub_router_names
-            assert "oleg_router" in sub_router_names
-            assert len(sub_router_names) >= 7
+            assert "oleg_router" not in sub_router_names
+            assert len(sub_router_names) >= 6
 
 
 class TestChallengerGate2HTMLEscapingStress:
@@ -114,7 +114,7 @@ class TestChallengerGate2HTMLEscapingStress:
 
     @pytest.mark.asyncio
     async def test_analytics_formatter_html_escaping(self, async_session, sample_user):
-        """Verify ReceiptService.get_expense_analytics escapes category names and Oleg remarks."""
+        """Verify ReceiptService.get_expense_analytics escapes category names."""
         main_acc = await BankingService.get_user_main_account(async_session, sample_user.id)
         assert main_acc is not None
 

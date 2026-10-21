@@ -8,7 +8,7 @@ Domains Covered:
    accrual math across categories + fallback rates, rounding, and 1-click payout.
 3. Formatted digital receipts (fiscal code format, auth code format, masking, optional cashback)
    and 10-block Unicode visual progress bars (0-100%, clamping, custom widths, character sets).
-4. Assistant Oleg regex intent classification (all intents, grammar variations, casing, slang,
+4. Boundary conditions and stress testing.
    ReDoS resilience on 5k+ chars), sarcastic fallback banter, context interpolation,
    and spending commentary.
 """
@@ -33,7 +33,6 @@ from app.services.admin import AdminService
 from app.services.banking import BankingService
 from app.services.card import CardService
 from app.services.cashback import CashbackService, DEFAULT_CASHBACK_CATEGORIES
-from app.services.oleg import OlegAssistant, INTENT_PATTERNS, RESPONSES
 from app.services.receipts import ReceiptService
 from app.services.savings import SavingsService
 from app.services.transfers import (
@@ -647,123 +646,7 @@ class TestReceiptsAndProgressBarsDeepStress:
         assert "расходов еще не было" in analytics_empty["formatted_report"]
 
 
-# ==============================================================================
-# Domain 4: Assistant Oleg Intent Engine & Sarcastic Banter Stress
-# ==============================================================================
 
-class TestOlegAssistantDeepStress:
-    """Empirical verification of Assistant Oleg classification, banter, and ReDoS resilience."""
-
-    @pytest.mark.parametrize(
-        "query, expected_intent",
-        [
-            # Balance
-            ("Какой баланс?", "BALANCE"),
-            ("СКОЛЬКО ДЕНЕГ НА СЧЕТУ", "BALANCE"),
-            ("  покажи бабло  ", "BALANCE"),
-            ("Остаток средств", "BALANCE"),
-            ("balance", "BALANCE"),
-            # Transfer
-            ("переведи 1000 рублей", "TRANSFER"),
-            ("скинь бабушке на карту", "TRANSFER"),
-            ("отправь перевод коллеге", "TRANSFER"),
-            ("закинь сотку", "TRANSFER"),
-            ("transfer", "TRANSFER"),
-            # Cashback
-            ("кэшбэк", "CASHBACK"),
-            ("кешбек за этот месяц", "CASHBACK"),
-            ("сколько бонусов накапало?", "CASHBACK"),
-            ("cashback", "CASHBACK"),
-            # Loan
-            ("дай кредит срочно", "LOAN"),
-            ("хочу оформить займ", "LOAN"),
-            ("займи денег до получки", "LOAN"),
-            ("ипотека", "LOAN"),
-            # Invest
-            ("что купить на бирже?", "INVEST"),
-            ("посоветуй акции для покупки", "INVEST"),
-            ("куда инвестировать миллион?", "INVEST"),
-            ("какие тикеры растут?", "INVEST"),
-            ("мой портфель", "INVEST"),
-            # Freeze
-            ("заблокируй карту", "FREEZE"),
-            ("заморозь пластик", "FREEZE"),
-            ("я потерял карту в метро", "FREEZE"),
-            ("блокировка карты", "FREEZE"),
-            # Identity
-            ("кто ты?", "IDENTITY"),
-            ("ты кто такой?", "IDENTITY"),
-            ("привет олег", "IDENTITY"),
-            ("здравствуй", "IDENTITY"),
-            # Gratitude
-            ("спасибо большое", "GRATITUDE"),
-            ("благодарю от души", "GRATITUDE"),
-            ("красава, молодец", "GRATITUDE"),
-            ("спс", "GRATITUDE"),
-            # Fallback
-            ("какая погода в Омске?", "FALLBACK"),
-            ("как приготовить борщ?", "FALLBACK"),
-            ("1234567890", "FALLBACK"),
-            ("!@#$%^&*()", "FALLBACK"),
-        ],
-    )
-    def test_intent_classification_comprehensive(self, query: str, expected_intent: str):
-        """Test regex classification across all defined intents and grammar variations."""
-        classified = OlegAssistant.classify_intent(query)
-        assert classified == expected_intent, f"Failed for query: '{query}'"
-
-    def test_redos_resilience_on_huge_inputs(self):
-        """Test that long repetitive strings do not trigger catastrophic backtracking."""
-        huge_text_1 = "сколько " * 1000 + "денег"
-        huge_text_2 = "а" * 5000 + " переведи"
-        huge_text_3 = "xyz " * 2000
-
-        # Must execute within milliseconds
-        t1 = OlegAssistant.classify_intent(huge_text_1)
-        assert t1 == "BALANCE"
-
-        t2 = OlegAssistant.classify_intent(huge_text_2)
-        assert t2 == "TRANSFER"
-
-        t3 = OlegAssistant.classify_intent(huge_text_3)
-        assert t3 == "FALLBACK"
-
-    def test_response_generation_all_intents_non_empty(self):
-        """Ensure get_response returns non-empty sarcastic strings for every intent."""
-        ctx = {"main_balance": "5000.00", "cashback_balance": "350.00"}
-        sample_queries = [
-            "баланс", "переведи", "кэшбэк", "кредит", "инвестиции", "заблокируй", "кто ты", "спасибо", "абракадабра"
-        ]
-        for q in sample_queries:
-            resp = OlegAssistant.get_response(q, context=ctx)
-            assert isinstance(resp, str)
-            assert len(resp) > 10
-
-    def test_response_generation_without_context_does_not_crash(self):
-        """Ensure get_response functions safely when context is None or empty dict."""
-        for q in ["баланс", "кэшбэк", "непонятно"]:
-            resp1 = OlegAssistant.get_response(q, context=None)
-            assert isinstance(resp1, str)
-            assert len(resp1) > 0
-
-            resp2 = OlegAssistant.get_response(q, context={})
-            assert isinstance(resp2, str)
-            assert len(resp2) > 0
-
-    @pytest.mark.parametrize(
-        "cat, expected_word",
-        [
-            ("Шаурма и фастфуд", "гастроэнтеролог"),
-            ("Яндекс Такси", "Пешком"),
-            ("Игры в Steam", "пиксели"),
-            ("Кофе на вынос", "растворимый"),
-            ("Одежда", "улетели"),
-        ],
-    )
-    def test_spending_commentary_keywords(self, cat: str, expected_word: str):
-        """Verify humorous commentary on spending categories."""
-        quip = OlegAssistant.get_comment_on_spending(cat, Decimal("500.00"))
-        assert expected_word.lower() in quip.lower()
 
 
 # ==============================================================================
@@ -826,16 +709,7 @@ class TestEmpiricalChallengerBugDemonstrations:
             assert successes[0] == Decimal("100.00")
             assert isinstance(failures[0], ValueError)
 
-    def test_oleg_intent_hijacking_transfer_with_money_keyword(self):
-        """
-        Verify transfer queries containing financial keywords ('деньги', 'бабло')
-        are correctly routed to TRANSFER, not falsely hijacked by BALANCE.
-        """
-        intent1 = OlegAssistant.classify_intent("переведи деньги другу")
-        assert intent1 == "TRANSFER", f"Expected TRANSFER, got {intent1}"
 
-        intent2 = OlegAssistant.classify_intent("скинь бабло")
-        assert intent2 == "TRANSFER", f"Expected TRANSFER, got {intent2}"
 
     @pytest.mark.asyncio
     async def test_search_user_15_digit_telegram_id_as_string(self, async_session):

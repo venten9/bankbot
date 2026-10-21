@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import Account, Card, Transaction, User
 from app.services.card import CardService
-from app.services.oleg import OlegAssistant
 
 
 class ReceiptService:
@@ -186,14 +185,6 @@ class ReceiptService:
             cat_escaped = html.escape(cat_name or "Разное", quote=False)
             report_lines.append(f"{idx}. {cat_escaped}: {cat_amount:.2f} ₽ ({pct:.1f}%)")
             report_lines.append(f"   <code>{bar}</code>")
-
-        oleg_comment = OlegAssistant.get_comment_on_spending(top_category, total_spent)
-        oleg_escaped = html.escape(oleg_comment, quote=False)
-        report_lines.extend([
-            "",
-            "💡 <b>Комментарий Олега:</b>",
-            f'<i>"{oleg_escaped}"</i>',
-        ])
 
         return {
             "month": cur_month,

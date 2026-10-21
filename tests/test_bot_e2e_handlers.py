@@ -28,7 +28,6 @@ from app.services.banking import BankingService
 from app.services.card import CardService
 from app.services.cashback import CashbackService
 from app.services.investments import InvestmentService
-from app.services.oleg import OlegAssistant
 from app.services.receipts import ReceiptService
 from app.services.savings import SavingsService
 from app.services.transfers import (
@@ -832,25 +831,6 @@ class TestBotRouterHandlerIntegration:
         await async_session.refresh(sample_user)
         assert sample_user.cashback_balance == Decimal("0.00")
 
-    @pytest.mark.asyncio
-    async def test_offline_oleg_assistant(
-        self, mock_bot, message_factory, async_session, sample_user
-    ):
-        """Test virtual assistant Oleg: prompt, balance query intent, and fallback banter."""
-        from app.bot.routers.oleg import handle_oleg_dialogue, handle_oleg_prompt
-
-        # 1. Prompt
-        msg_oleg = message_factory("💬 Олег", user_id=sample_user.telegram_id)
-        await handle_oleg_prompt(msg_oleg, session=async_session, user=sample_user)
-
-        # 2. Balance intent
-        msg_bal = message_factory("Какой у меня баланс?", user_id=sample_user.telegram_id)
-        await handle_oleg_dialogue(msg_bal, session=async_session, user=sample_user)
-
-        # 3. Fallback intent
-        msg_fb = message_factory("Что происходит с миром?", user_id=sample_user.telegram_id)
-        await handle_oleg_dialogue(msg_fb, session=async_session, user=sample_user)
-
     def test_is_admin_filter_rbac(self, message_factory):
         """Test IsAdminFilter RBAC authorization."""
         from app.bot.filters.admin import IsAdminFilter
@@ -883,7 +863,7 @@ class TestBotRouterHandlerIntegration:
         assert "savings_router" in sub_router_names
         assert "invest_router" in sub_router_names
         assert "cashback_router" in sub_router_names
-        assert "oleg_router" in sub_router_names
+        assert "oleg_router" not in sub_router_names
 
     def test_create_dispatcher_idempotency_multiple_calls(self):
         """Verify create_dispatcher can be invoked repeatedly without RuntimeError."""
@@ -892,6 +872,6 @@ class TestBotRouterHandlerIntegration:
         dp1 = create_dispatcher()
         dp2 = create_dispatcher()
         assert dp1 is not dp2
-        assert len(dp2.sub_routers) >= 7
+        assert len(dp2.sub_routers) >= 6
 
 

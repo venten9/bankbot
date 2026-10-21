@@ -17,7 +17,6 @@ from app.bot.routers.card import card_router
 from app.bot.routers.cashback import cashback_router
 from app.bot.routers.common import common_router
 from app.bot.routers.invest import invest_router
-from app.bot.routers.oleg import oleg_router
 from app.bot.routers.savings import savings_router
 from app.bot.routers.transfer import (
     handle_cancel_transfer_callback,
@@ -45,7 +44,7 @@ class TestRouterLifecycleStress:
         for _ in range(50):
             dp = create_dispatcher()
             dispatchers.append(dp)
-            assert len(dp.sub_routers) >= 7
+            assert len(dp.sub_routers) >= 6
 
         last_dp = dispatchers[-1]
         router_names = {r.name for r in last_dp.sub_routers}
@@ -56,9 +55,9 @@ class TestRouterLifecycleStress:
             "savings_router",
             "invest_router",
             "cashback_router",
-            "oleg_router",
         }
         assert expected.issubset(router_names)
+        assert "oleg_router" not in router_names
 
     def test_detach_router_on_unattached_router(self):
         """detach_router on a virgin router with no parent must be a safe no-op."""

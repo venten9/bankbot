@@ -9,7 +9,6 @@ from app.services.investments import (
     InsufficientSharesError,
     InvestmentService,
 )
-from app.services.oleg import OlegAssistant
 from app.services.receipts import ReceiptService
 from app.services.savings import SavingsService
 from app.services.transfers import (
@@ -31,7 +30,6 @@ __all__ = [
     "InsufficientFundsError",
     "InsufficientSharesError",
     "InvestmentService",
-    "OlegAssistant",
     "ReceiptService",
     "RecipientNotFoundError",
     "SavingsService",

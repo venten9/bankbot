@@ -7,7 +7,7 @@ Covers:
 - Cashback percentage calculations across all humorous categories and rounding.
 - Stock market dynamic GBM pricing, mean-reversion, price floor (0.01 ₽), broker fee (0.3%), and portfolio valuation.
 - Receipt formatting, fiscal code format, auth code, and 10-block Unicode visual expense progress bars.
-- Assistant Oleg intent classification and response formatting.
+- Financial calculations and formatting.
 """
 
 import math
@@ -20,7 +20,6 @@ from app.database.models import Transaction
 from app.services.card import CardService, MIR_BIN
 from app.services.cashback import CashbackService, DEFAULT_CASHBACK_CATEGORIES
 from app.services.investments import InvestmentService, DEFAULT_STOCKS
-from app.services.oleg import OlegAssistant
 from app.services.receipts import ReceiptService
 from app.services.savings import SavingsService
 
@@ -498,69 +497,4 @@ class TestReceiptsAndVisualBars:
         assert "За кофе и пиццу" in receipt
 
 
-# ==============================================================================
-# Domain 7: Oleg Assistant Intent Classification & Banter
-# ==============================================================================
 
-class TestOlegAssistantMathAndRegex:
-    """Assistant Oleg regex intent classifier and sarcastic response generation."""
-
-    @pytest.mark.parametrize(
-        "query, expected_intent",
-        [
-            ("Какой баланс?", "BALANCE"),
-            ("сколько денег на счету", "BALANCE"),
-            ("покажи бабло", "BALANCE"),
-            ("balance", "BALANCE"),
-            ("переведи 500 рублей маме", "TRANSFER"),
-            ("скинь денег на карту", "TRANSFER"),
-            ("отправь перевод", "TRANSFER"),
-            ("transfer", "TRANSFER"),
-            ("кэшбэк", "CASHBACK"),
-            ("сколько бонусов", "CASHBACK"),
-            ("cashback", "CASHBACK"),
-            ("дай кредит срочно", "LOAN"),
-            ("займи денег до зарплаты", "LOAN"),
-            ("хочу оформить займ", "LOAN"),
-            ("что купить на бирже?", "INVEST"),
-            ("посоветуй акции", "INVEST"),
-            ("куда инвестировать", "INVEST"),
-            ("заблокируй карту", "FREEZE"),
-            ("я потерял карту", "FREEZE"),
-            ("заморозь пластик", "FREEZE"),
-            ("ты кто такой?", "IDENTITY"),
-            ("кто ты?", "IDENTITY"),
-            ("привет олег", "IDENTITY"),
-            ("спасибо большое", "GRATITUDE"),
-            ("благодарю от души", "GRATITUDE"),
-            ("молодец", "GRATITUDE"),
-            ("произвольный набор символов абвгд 123", "FALLBACK"),
-        ],
-    )
-    def test_intent_classification(self, query: str, expected_intent: str):
-        """Verify regex intent matching across banking queries and colloquial speech."""
-        intent = OlegAssistant.classify_intent(query)
-        assert intent == expected_intent
-
-    def test_response_incorporates_context(self):
-        """Responses should interpolate balance and cashback when context is provided."""
-        ctx = {"main_balance": "15400.50", "cashback_balance": "1250.00"}
-        resp = OlegAssistant.get_response("какой баланс", context=ctx)
-        assert "15400.50" in resp or "₽" in resp
-
-    @pytest.mark.parametrize(
-        "category, amount, expected_keyword",
-        [
-            ("Фастфуд и кафе", Decimal("500.00"), "гастроэнтеролог"),
-            ("Шаурма", Decimal("250.00"), "гастроэнтеролог"),
-            ("Такси", Decimal("800.00"), "Пешком"),
-            ("Игры", Decimal("1500.00"), "пиксели"),
-            ("Кофе", Decimal("350.00"), "растворимый"),
-        ],
-    )
-    def test_spending_commentary_keywords(
-        self, category: str, amount: Decimal, expected_keyword: str
-    ):
-        """Verify funny contextual commentary on specific spending categories."""
-        comment = OlegAssistant.get_comment_on_spending(category, amount)
-        assert expected_keyword.lower() in comment.lower()

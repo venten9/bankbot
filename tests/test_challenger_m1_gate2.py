@@ -1,8 +1,7 @@
 """
 Empirical Challenger Verification Test Suite for Milestone 1 Gate 2.
 Adversarially tests:
-1. OlegAssistant.classify_intent routing (money keywords, transfer phrases, balance queries).
-2. AdminService.search_user (15-20 digit Telegram IDs, card fallback, SQL wildcard escaping).
+1. AdminService.search_user (15-20 digit Telegram IDs, card fallback, SQL wildcard escaping).
 3. CashbackService.select_categories (duplicate category rejection with clean ValueError).
 4. ReceiptService.format_receipt (fee=None handling, decimal precision).
 """
@@ -17,63 +16,10 @@ from app.database.models import Account, Card, Transaction, User
 from app.services.admin import AdminService
 from app.services.banking import BankingService
 from app.services.cashback import CashbackService
-from app.services.oleg import OlegAssistant
 from app.services.receipts import ReceiptService
 
 
-class TestOlegIntentRoutingEmpirical:
-    """Empirically stress-test OlegAssistant.classify_intent."""
 
-    @pytest.mark.parametrize(
-        "query,expected_intent",
-        [
-            # Required in Gate 2 dispatch
-            ("переведи деньги другу", "TRANSFER"),
-            ("скинь бабло", "TRANSFER"),
-            ("закинь бабки на счет", "TRANSFER"),
-            ("сколько на счету", "BALANCE"),
-            ("какой баланс", "BALANCE"),
-            # Additional conversational and morphological transfer variations
-            ("Олег, переведи деньги другу срочно", "TRANSFER"),
-            ("Скинь бабло на карту", "TRANSFER"),
-            ("Закинь бабки на счет маме", "TRANSFER"),
-            ("Отправь 500 рублей брату", "TRANSFER"),
-            ("отправить деньги", "TRANSFER"),
-            ("перечисли средства на счет", "TRANSFER"),
-            ("скинуть бабло коллеге", "TRANSFER"),
-            ("кинь десятку", "TRANSFER"),
-            ("transfer 100 to alex", "TRANSFER"),
-            # Additional balance query variations
-            ("сколько на счету?", "BALANCE"),
-            ("какой баланс у меня?", "BALANCE"),
-            ("сколько денег на счету", "BALANCE"),
-            ("покажи баланс", "BALANCE"),
-            ("проверь баланс", "BALANCE"),
-            ("узнать баланс", "BALANCE"),
-            ("глянь остаток на счете", "BALANCE"),
-            ("посмотри сколько денег", "BALANCE"),
-            ("покажи бабло", "BALANCE"),
-            ("баланс", "BALANCE"),
-            ("остаток", "BALANCE"),
-            ("balance", "BALANCE"),
-            # Security precedence: freeze must override transfer
-            ("заблокируй карту и не переводи", "FREEZE"),
-            ("потерял карту, заморозь", "FREEZE"),
-            # Other intents
-            ("кэшбэк за этот месяц", "CASHBACK"),
-            ("дай кредит срочно", "LOAN"),
-            ("куда инвестировать", "INVEST"),
-            ("кто ты?", "IDENTITY"),
-            ("спасибо большое", "GRATITUDE"),
-            ("случайная тарабарщина xyz 123", "FALLBACK"),
-        ],
-    )
-    def test_oleg_intent_routing_matrix(self, query: str, expected_intent: str):
-        """Verify intent classification accurately distinguishes transfer, balance, and other intents."""
-        actual = OlegAssistant.classify_intent(query)
-        assert actual == expected_intent, (
-            f"Failed intent classification for query '{query}': expected '{expected_intent}', got '{actual}'"
-        )
 
 
 class TestAdminSearchEmpirical:

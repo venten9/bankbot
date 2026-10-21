@@ -3,7 +3,7 @@
 Focus Areas:
 1. Investments Dynamic Stock Catalog, Buy/Sell FSM, Broker Fee, and Portfolio Valuation.
 2. Cashback 4-of-8 Category Selector, Accrual Math, and 1-Click Bonus Payout.
-3. Oleg Virtual Assistant Intent Routing, Sarcastic Banter Fallback, and Edge-Case Inputs.
+3. Visual Formatters and Analytics.
 4. Formatters: T-Bank Black Box Layout, Digital Receipts, and Unicode Progress Bars.
 """
 
@@ -22,7 +22,6 @@ from app.services.investments import (
     InsufficientSharesError,
     InvestmentService,
 )
-from app.services.oleg import INTENT_PATTERNS, OlegAssistant
 from app.services.receipts import ReceiptService
 from app.services.transfers import InsufficientFundsError
 
@@ -464,88 +463,7 @@ class TestCashbackEmpirical:
         assert await state.get_state() == CashbackStates.selecting_categories  # remains selecting
 
 
-# ==============================================================================
-# 3. OLEG VIRTUAL ASSISTANT INTENT ROUTING & SARCASTIC BANTER
-# ==============================================================================
 
-class TestOlegAssistantEmpirical:
-    """Rigorous empirical verification of Oleg virtual assistant regex & banter engine."""
-
-    @pytest.mark.parametrize(
-        "query,expected_intent",
-        [
-            ("Какой у меня баланс?", "BALANCE"),
-            ("сколько денег на счете", "BALANCE"),
-            ("покажи бабло", "BALANCE"),
-            ("balance", "BALANCE"),
-            ("переведи 500 рублей маме", "TRANSFER"),
-            ("скинь денег на карту", "TRANSFER"),
-            ("отправь перевод", "TRANSFER"),
-            ("transfer", "TRANSFER"),
-            ("кэшбэк", "CASHBACK"),
-            ("сколько бонусов", "CASHBACK"),
-            ("cashback", "CASHBACK"),
-            ("дай кредит срочно", "LOAN"),
-            ("займи денег до зарплаты", "LOAN"),
-            ("хочу оформить займ", "LOAN"),
-            ("что купить на бирже?", "INVEST"),
-            ("посоветуй акции", "INVEST"),
-            ("куда инвестировать", "INVEST"),
-            ("заблокируй карту", "FREEZE"),
-            ("я потерял карту", "FREEZE"),
-            ("заморозь пластик", "FREEZE"),
-            ("ты кто такой?", "IDENTITY"),
-            ("кто ты?", "IDENTITY"),
-            ("привет олег", "IDENTITY"),
-            ("спасибо большое", "GRATITUDE"),
-            ("благодарю от души", "GRATITUDE"),
-            ("молодец", "GRATITUDE"),
-            ("произвольный набор символов абвгд 123", "FALLBACK"),
-            ("Какая погода сегодня в Норильске?", "FALLBACK"),
-            ("Квадратный корень из 144", "FALLBACK"),
-        ],
-    )
-    def test_intent_classification(self, query: str, expected_intent: str):
-        """Empirically test regex intent classifier accuracy."""
-        assert OlegAssistant.classify_intent(query) == expected_intent
-
-    def test_sarcastic_context_injection(self):
-        """Verify dynamic balance and cashback context formatting in response."""
-        context = {
-            "main_balance": Decimal("12345.67"),
-            "cashback_balance": Decimal("987.65"),
-        }
-        resp = OlegAssistant.get_response("Какой баланс?", context=context)
-        assert "12345.67 ₽" in resp
-        assert len(resp) > 10
-
-    def test_sarcastic_spending_commentary(self):
-        """Verify spending commentary triggers relevant sarcastic quips."""
-        assert "гастроэнтеролог" in OlegAssistant.get_comment_on_spending("Шаурма", 250)
-        assert "Пешком" in OlegAssistant.get_comment_on_spending("Такси", 500)
-        assert "пиксели" in OlegAssistant.get_comment_on_spending("Игры", 1500)
-        assert "растворимый" in OlegAssistant.get_comment_on_spending("Кофе", 350)
-        assert "улетели" in OlegAssistant.get_comment_on_spending("Неизвестное", 100)
-
-    @pytest.mark.asyncio
-    async def test_oleg_router_handles_extreme_inputs(
-        self, message_factory, async_session, sample_user
-    ):
-        """Verify router robustness against commands, long strings, emojis, and injection patterns."""
-        from app.bot.routers.oleg import handle_oleg_dialogue
-
-        # 1. Message starting with '/' should return unknown command guidance
-        msg_cmd = message_factory("/foobar", user_id=sample_user.telegram_id)
-        await handle_oleg_dialogue(msg_cmd, session=async_session, user=sample_user)
-
-        # 2. Extremely long string (10,000 characters)
-        long_text = "деньги " * 1500
-        msg_long = message_factory(long_text, user_id=sample_user.telegram_id)
-        await handle_oleg_dialogue(msg_long, session=async_session, user=sample_user)
-
-        # 3. HTML and SQL injection payload
-        msg_xss = message_factory("<script>alert('xss')</script> ' OR '1'='1", user_id=sample_user.telegram_id)
-        await handle_oleg_dialogue(msg_xss, session=async_session, user=sample_user)
 
 
 # ==============================================================================
@@ -637,7 +555,7 @@ class TestFormattersEmpirical:
 
     @pytest.mark.asyncio
     async def test_expense_analytics_report_generation(self, async_session, sample_user):
-        """Verify visual monthly expense analytics generation with progress bars and Oleg quip."""
+        """Verify visual monthly expense analytics generation with progress bars."""
         from app.bot.formatters.analytics import format_expense_analytics
 
         # 1. Empty month report
@@ -678,7 +596,7 @@ class TestFormattersEmpirical:
         assert "4000.00 ₽" in report
         assert "Шаурма и фастфуд: 3000.00 ₽ (75.0%)" in report
         assert "Такси: 1000.00 ₽ (25.0%)" in report
-        assert "Комментарий Олега:" in report
+        assert "Комментарий Олега:" not in report
 
 
 # ==============================================================================

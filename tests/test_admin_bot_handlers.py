@@ -151,7 +151,7 @@ class TestAdminRbacAndDashboardHandlers:
         sent_texts = get_all_sent_texts(mock_bot)
         assert len(sent_texts) >= 1
         assert any("Доступ запрещен" in t for t in sent_texts)
-        assert any("Олег" in t for t in sent_texts)
+        assert any("Т-Банк" in t for t in sent_texts)
 
     @pytest.mark.asyncio
     async def test_unauthorized_callback_rejected(
