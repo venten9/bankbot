@@ -89,6 +89,25 @@ Modern, asynchronous Telegram neobank bot built with:
 | F53 | Packaging & Dependencies | requirements.txt with pinned dependencies and .env.example | M4 | Survey R4 |
 | F54 | Project Documentation | Comprehensive README.md with setup, admin guide, and usage | M4 | Survey R4 |
 | F55 | Automated Pytest Suite | Comprehensive 4-tier test suite in tests/ passing with 0 errors | E2E | Survey R3 |
+| F56 | UserJob Model & Schema Persistence | UserJob table with user_id, branch, level, shifts, timers, unique (user_id, branch) | M5 | Survey Jobs R1 |
+| F57 | User last_hustle_at Tracking | User relationship to jobs and last_hustle_at timestamp | M5 | Survey Jobs R1 |
+| F58 | 4 Branches & 20 Professions Catalog | IT, SERVICE, FINANCE, SHADOW matrix across 5 tiers with titles, salaries, shift reqs | M5 | Survey Jobs R2 |
+| F59 | Multi-Employment Cap | Maximum 2 active jobs simultaneously, 3rd job application rejected | M5 | Survey Jobs R2 |
+| F60 | Career Resignation & Progress Retention | Quitting job deactivates record while preserving level and completed shifts | M5 | Survey Jobs R2 |
+| F61 | Timed Shift Lifecycle | 2-hour shift duration/cooldown, premature claim rejection | M5 | Survey Jobs R2 |
+| F62 | Workplace Events Roll | Probabilistic events (Bonus, Reprimand, Shadow Police Raid) modifying salary | M5 | Survey Jobs R2 |
+| F63 | Atomic Salary Settlement | Atomic credit to Main account and Transaction(tx_type="SALARY") with LedgerEntry | M5 | Survey Jobs R2 |
+| F64 | Career Advancement Progression | Promotion check and tier upgrade when completed shifts meet requirement | M5 | Survey Jobs R2 |
+| F65 | Interactive Quick Hustles Engine | 15-minute cooldown, situational decision dilemmas with multiple options | M5 | Survey Jobs R2 |
+| F66 | Non-Negative Balance Clamping | Probabilistic rewards or penalties guaranteed not to cause negative balances | M5 | Survey Jobs R2 |
+| F67 | Persistent Reply Button | "💼 Работа и бизнес" keyboard button in main menu | M6 | Survey Jobs R3 |
+| F68 | Career Dashboard Keyboards | Dynamic dashboard showing active jobs, shift timers, claim/promotion buttons | M6 | Survey Jobs R3 |
+| F69 | Job Market Keyboards | Branch catalog and hiring/resignation buttons | M6 | Survey Jobs R3 |
+| F70 | Hustle Decision Keyboards | Inline buttons for dilemma options and cancellation | M6 | Survey Jobs R3 |
+| F71 | Rich HTML Formatters & Progress Bars | Formatters for career card, shift countdowns, Unicode progress bars | M6 | Survey Jobs R3 |
+| F72 | Telegram Router Registration | jobs_router registered in bot.py and routers/__init__.py with full handler suite | M6 | Survey Jobs R3 |
+| F73 | Automated Career Pytest Suite | Comprehensive pytest suite in tests/test_jobs_career.py covering R1-R4 | M7 | Survey Jobs R4 |
+| F74 | Zero Regressions Full Verification | 100% test pass across all tests with 0 failures and 0 errors | M7 | Survey Jobs R4 |
 
 ---
 
@@ -100,6 +119,9 @@ Modern, asynchronous Telegram neobank bot built with:
 | M3 | Administrative Management Panel (/admin) | /admin RBAC IsAdminFilter, metrics, user search, inspection, freeze/unfreeze, balance adjustment with reason, audit log, broadcast engine | M1, M2 | DONE |
 | M4 | Packaging, Documentation & Full Integration | requirements.txt, .env.example, README.md, full E2E test verification (100% pass) and adversarial hardening | M1, M2, M3, E2E | DONE |
 | E2E | E2E Testing Track | Independent opaque-box test harness and test suite covering Tiers 1-4 | none | DONE |
+| M5 | Database Models & Core Career Domain Service | UserJob model, User.last_hustle_at, check constraints, app/database/__init__.py, app/services/jobs.py with atomic ledger and clamping | none | DONE |
+| M6 | Telegram Bot UI, Keyboards, Formatters & Handlers | reply.py, app/bot/keyboards/jobs.py, app/bot/formatters/jobs.py, app/bot/routers/jobs.py, bot.py registration | M5 | DONE |
+| M7 | Automated Pytest Suite, Regression Verification & Audit | tests/test_jobs_career.py, README.md, adversarial verification, forensic audit, 0 regressions | M5, M6 | DONE |
 
 ---
 

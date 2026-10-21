@@ -18,6 +18,9 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
             KeyboardButton(text="🎁 Кэшбэк"),
             KeyboardButton(text="📊 Аналитика"),
         ],
+        [
+            KeyboardButton(text="💼 Работа и бизнес"),
+        ],
     ]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,

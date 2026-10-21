@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -46,10 +46,19 @@ async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
 
 
 async def init_db(engine_override: AsyncEngine | None = None) -> None:
-    """Initialize database schemas, creating all tables if not already present."""
+    """Initialize database schemas, creating all tables and migrating existing schemas."""
     active_engine = engine_override or engine
     async with active_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        def _migrate_columns(connection) -> None:
+            """Inspect and add missing columns to existing SQLite tables."""
+            res = connection.execute(text("PRAGMA table_info(users);"))
+            existing_cols = {row[1] for row in res.fetchall()}
+            if existing_cols and "last_hustle_at" not in existing_cols:
+                connection.execute(text("ALTER TABLE users ADD COLUMN last_hustle_at DATETIME;"))
+
+        await conn.run_sync(_migrate_columns)
 
 
 @asynccontextmanager

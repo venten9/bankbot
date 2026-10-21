@@ -13,6 +13,7 @@ from app.database.models import (
     Transaction,
     User,
     UserCashbackSelection,
+    UserJob,
 )
 from app.database.session import (
     async_session_factory,
@@ -36,6 +37,7 @@ __all__ = [
     "Transaction",
     "User",
     "UserCashbackSelection",
+    "UserJob",
     "async_session_factory",
     "engine",
     "get_db_session",

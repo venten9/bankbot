@@ -10,6 +10,12 @@ from app.bot.keyboards.inline import (
     get_trade_confirm_keyboard,
     get_transfer_confirm_keyboard,
 )
+from app.bot.keyboards.jobs import (
+    get_branch_detail_keyboard,
+    get_hustle_keyboard,
+    get_job_market_keyboard,
+    get_jobs_menu_keyboard,
+)
 from app.bot.keyboards.reply import (
     get_cancel_reply_keyboard,
     get_main_menu_keyboard,
@@ -26,4 +32,8 @@ __all__ = [
     "get_transfer_confirm_keyboard",
     "get_cancel_reply_keyboard",
     "get_main_menu_keyboard",
+    "get_branch_detail_keyboard",
+    "get_hustle_keyboard",
+    "get_job_market_keyboard",
+    "get_jobs_menu_keyboard",
 ]

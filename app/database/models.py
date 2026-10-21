@@ -59,6 +59,10 @@ class User(Base):
     cashback_selections: Mapped[list["UserCashbackSelection"]] = relationship(
         "UserCashbackSelection", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
+    jobs: Mapped[list["UserJob"]] = relationship(
+        "UserJob", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
+    )
+    last_hustle_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Account(Base):
@@ -310,3 +314,31 @@ class AdminLog(Base):
     @details.setter
     def details(self, value: str) -> None:
         self.reason = value
+
+
+class UserJob(Base):
+    """User employment model: active profession branch, level, shifts, and shift timers."""
+
+    __tablename__ = "user_jobs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "branch", name="uq_user_job_branch"),
+        CheckConstraint("level >= 1 AND level <= 5", name="chk_user_job_level"),
+        CheckConstraint("shifts_completed >= 0", name="chk_user_job_shifts"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    branch: Mapped[str] = mapped_column(String(32), nullable=False)  # IT, SERVICE, FINANCE, SHADOW
+    level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    shifts_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_on_shift: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    shift_started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    last_shift_completed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="jobs")
+
