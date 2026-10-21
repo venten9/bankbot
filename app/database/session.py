@@ -57,6 +57,8 @@ async def init_db(engine_override: AsyncEngine | None = None) -> None:
             existing_cols = {row[1] for row in res.fetchall()}
             if existing_cols and "last_hustle_at" not in existing_cols:
                 connection.execute(text("ALTER TABLE users ADD COLUMN last_hustle_at DATETIME;"))
+            if existing_cols and "last_daily_spin_at" not in existing_cols:
+                connection.execute(text("ALTER TABLE users ADD COLUMN last_daily_spin_at DATETIME;"))
 
         await conn.run_sync(_migrate_columns)
 

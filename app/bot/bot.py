@@ -13,8 +13,10 @@ from app.bot.routers.cashback import cashback_router
 from app.bot.routers.common import common_router
 from app.bot.routers.invest import invest_router
 from app.bot.routers.jobs import jobs_router
+from app.bot.routers.property import property_router
 from app.bot.routers.savings import savings_router
 from app.bot.routers.transfer import transfer_router
+from app.bot.routers.wheel import wheel_router
 from app.config import settings
 from app.database.session import async_session_factory
 
@@ -60,6 +62,8 @@ def create_dispatcher(
         invest_router,
         cashback_router,
         jobs_router,
+        property_router,
+        wheel_router,
     ])
 
     # 3. Detach and attach routers idempotently
@@ -79,4 +83,3 @@ def create_bot(token: str | None = None) -> Bot:
         token=bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-

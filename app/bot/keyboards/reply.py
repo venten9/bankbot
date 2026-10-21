@@ -4,7 +4,11 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 
 def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Return the persistent main menu keyboard for T-Bank clients."""
+    """Return the persistent main menu keyboard for T-Bank clients.
+    
+    Configured as a 2x4 grid for core banking & lifestyle features,
+    with an additional analytics row to preserve full accessibility.
+    """
     keyboard = [
         [
             KeyboardButton(text="💳 Моя карта"),
@@ -15,11 +19,15 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
             KeyboardButton(text="📈 Инвестиции"),
         ],
         [
+            KeyboardButton(text="💼 Работа и бизнес"),
             KeyboardButton(text="🎁 Кэшбэк"),
-            KeyboardButton(text="📊 Аналитика"),
         ],
         [
-            KeyboardButton(text="💼 Работа и бизнес"),
+            KeyboardButton(text="🎰 Колесо Фортуны"),
+            KeyboardButton(text="🏛 Имущество"),
+        ],
+        [
+            KeyboardButton(text="📊 Аналитика"),
         ],
     ]
     return ReplyKeyboardMarkup(

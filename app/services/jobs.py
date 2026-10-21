@@ -408,8 +408,17 @@ class JobService:
             raise ValueError("Вы уже на смене! Дождитесь окончания и заберите зарплату.")
 
         current_time = now or datetime.datetime.now()
+
+        # Car buff: cooldown reduction
+        from app.services.property import PropertyService
+        _, cooldown_reduction_minutes = await PropertyService.get_user_car_buffs(session, user_id)
+        if cooldown_reduction_minutes > 0:
+            shift_start = current_time - datetime.timedelta(minutes=cooldown_reduction_minutes)
+        else:
+            shift_start = current_time
+
         job.is_on_shift = True
-        job.shift_started_at = current_time
+        job.shift_started_at = shift_start
         await session.flush()
         return job
 
@@ -504,6 +513,18 @@ class JobService:
             else:
                 event_text = "✅ Смена отработана на отлично! Базовая зарплата начислена."
 
+        # Car buff: salary bonus %
+        from app.services.property import PropertyService
+        salary_bonus_pct, _ = await PropertyService.get_user_car_buffs(session, user_id)
+        car_bonus = Decimal("0.00")
+        if salary_bonus_pct > 0:
+            car_bonus = (base_salary * Decimal(str(salary_bonus_pct)) / Decimal("100")).quantize(Decimal("0.01"))
+            payout += car_bonus
+            if event_text:
+                event_text += f"\n🚗 <b>Бонус за авто (+{salary_bonus_pct}%):</b> +{car_bonus:,.2f} ₽"
+            else:
+                event_text = f"🚗 <b>Бонус за авто (+{salary_bonus_pct}%):</b> +{car_bonus:,.2f} ₽"
+
         # 1. Atomic conditional update on UserJob to conclude shift before crediting balance.
         # Enforces compare-and-swap (CAS) semantics on is_on_shift to prevent double payout race condition.
         claim_stmt = (
@@ -547,6 +568,10 @@ class JobService:
 
         # 3. Create Transaction and LedgerEntry records
         tx_id = f"sal-{uuid.uuid4().hex[:12]}"
+        tx_desc = f"Зарплата: {job_info['title']} ({JobBranch.get_title(branch)})"
+        if car_bonus > Decimal("0.00"):
+            tx_desc += f" + Авто-бонус {salary_bonus_pct}%: {car_bonus:,.2f} ₽"
+
         tx = Transaction(
             id=tx_id,
             sender_account_id=None,
@@ -554,7 +579,7 @@ class JobService:
             amount=payout,
             tx_type="SALARY",
             category="Зарплата и карьера",
-            description=f"Зарплата: {job_info['title']} ({JobBranch.get_title(branch)})",
+            description=tx_desc,
             status="COMPLETED",
             fiscal_code=ReceiptService.generate_fiscal_code(),
             auth_code=ReceiptService.generate_auth_code(),

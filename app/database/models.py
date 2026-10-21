@@ -62,7 +62,11 @@ class User(Base):
     jobs: Mapped[list["UserJob"]] = relationship(
         "UserJob", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
+    properties: Mapped[list["UserProperty"]] = relationship(
+        "UserProperty", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
+    )
     last_hustle_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    last_daily_spin_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Account(Base):
@@ -341,4 +345,24 @@ class UserJob(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="jobs")
+
+
+class UserProperty(Base):
+    """User property model: cars with buffs, rental real estate, and luxury collectibles."""
+
+    __tablename__ = "user_properties"
+    __table_args__ = (
+        UniqueConstraint("user_id", "item_id", name="uq_user_property"),
+        CheckConstraint("purchase_price >= 0.00", name="chk_user_property_price"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    category: Mapped[str] = mapped_column(String(32), index=True, nullable=False)  # CAR, REAL_ESTATE, LUXURY
+    item_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    purchase_price: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
+    purchased_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    last_rent_collected_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="properties")
 
