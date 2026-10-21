@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environments and credentials
+.env
+*.tmp
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Internal agents telemetry & scratch
+.agents/
