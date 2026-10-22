@@ -39,6 +39,7 @@ from app.database.models import (
     UserProperty,
     SportsBet,
     PvPDuel,
+    SportsMatch,
 )
 from app.services.card import CardService
 from app.services.investments import InvestmentService
@@ -861,6 +862,13 @@ class AdminService:
             if prop.category == "REAL_ESTATE":
                 prop.last_rent_collected_at = now - datetime.timedelta(hours=25)
                 rentals_reset += 1
+
+        # 5. Fast-forward scheduled bookmaker matches
+        await session.execute(
+            update(SportsMatch)
+            .where(SportsMatch.status.in_(["SCHEDULED", "LIVE"]))
+            .values(scheduled_at=now - datetime.timedelta(seconds=5))
+        )
 
         admin_log = AdminLog(
             admin_telegram_id=admin_telegram_id,

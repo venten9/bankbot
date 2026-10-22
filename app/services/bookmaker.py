@@ -23,6 +23,7 @@ class BookmakerService:
     MIN_BET: Decimal = Decimal("100.00")
     MAX_BET: Decimal = Decimal("20000000.00")
     BOOKMAKER_MARGIN: float = 0.05
+    GAMBLING_TAX_RATE: Decimal = Decimal("0.13")  # 13% НДФЛ на чистый выигрыш в БК
 
     FOOTBALL_TEAMS: list[dict[str, Any]] = [
         {
@@ -922,7 +923,11 @@ class BookmakerService:
                     is_win = True
 
                 if is_win:
-                    payout = bet.potential_payout
+                    gross_payout = bet.potential_payout
+                    net_profit = max(Decimal("0.00"), gross_payout - bet.amount)
+                    tax = (net_profit * cls.GAMBLING_TAX_RATE).quantize(Decimal("0.01"))
+                    payout = gross_payout - tax
+
                     if user_acc:
                         await session.execute(
                             update(Account)
@@ -936,6 +941,7 @@ class BookmakerService:
                         ).scalar_one()
 
                         tx_id = f"win-{uuid.uuid4().hex[:12]}"
+                        tax_note = f" (удержан налог НДФЛ 13%: {tax:,.2f} ₽)" if tax > Decimal("0.00") else ""
                         tx = Transaction(
                             id=tx_id,
                             sender_account_id=None,
@@ -944,7 +950,7 @@ class BookmakerService:
                             tx_type="BET_WIN",
                             category="Ставки и азарт",
                             description=(
-                                f"Выигрыш по ставке {payout:,.2f} ₽: «{match.team_home} — {match.team_away}» "
+                                f"Выигрыш по ставке {payout:,.2f} ₽{tax_note}: «{match.team_home} — {match.team_away}» "
                                 f"({bet.bet_type}) с кэфом {bet.odds}"
                             ),
                             status="COMPLETED",

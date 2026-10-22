@@ -1,5 +1,6 @@
 """Inline Keyboard Markups for T-Bets Bookmaker & PvP High-Stakes Arena."""
 
+import datetime
 from typing import Any
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -96,9 +97,19 @@ def get_match_detail_keyboard(
             InlineKeyboardButton(text=f"ТБ 2.5 ({odds_o:.2f})", callback_data=f"b:pk:{mid}:O"),
             InlineKeyboardButton(text=f"ТМ 2.5 ({odds_u:.2f})", callback_data=f"b:pk:{mid}:U"),
         ])
-        # Live Simulation Trigger
+        # Live Simulation Trigger with Countdown
+        now = datetime.datetime.now()
+        sched = getattr(match, "scheduled_at", None)
+        rem_sec = int((sched - now).total_seconds()) if sched else 0
+        if rem_sec > 0:
+            rem_m = rem_sec // 60
+            rem_s = rem_sec % 60
+            sim_title = f"⏳ Матч идет ({rem_m}м {rem_s:02d}с)"
+        else:
+            sim_title = "▶️ Финальный свисток (Результат)"
+
         buttons.append([
-            InlineKeyboardButton(text="▶️ Запустить матч (Live)", callback_data=f"b:sim:{mid}"),
+            InlineKeyboardButton(text=sim_title, callback_data=f"b:sim:{mid}"),
         ])
     else:
         # LIVE or FINISHED

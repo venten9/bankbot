@@ -446,9 +446,13 @@ class TestBookmakerBettingAndSimulation:
         assert len(settled_bets) == 1
         assert settled_bets[0].status == "WON"
 
-        # Check balance post-win
+        # Check balance post-win (payout net after 13% tax on net profit)
         await async_session.refresh(acc)
-        expected_balance = Decimal("9000.00") + bet.potential_payout
+        gross_payout = bet.potential_payout
+        net_profit = max(Decimal("0.00"), gross_payout - bet.amount)
+        tax = (net_profit * Decimal("0.13")).quantize(Decimal("0.01"))
+        expected_payout = gross_payout - tax
+        expected_balance = Decimal("9000.00") + expected_payout
         assert acc.balance == expected_balance
 
         # Check BET_WIN transaction
@@ -457,7 +461,7 @@ class TestBookmakerBettingAndSimulation:
             Transaction.tx_type == "BET_WIN",
         )
         tx = (await async_session.execute(tx_stmt)).scalar_one()
-        assert tx.amount == bet.potential_payout
+        assert tx.amount == expected_payout
         assert tx.category == "Ставки и азарт"
 
     @pytest.mark.asyncio
@@ -549,6 +553,51 @@ class TestBookmakerBettingAndSimulation:
         )
         tx = (await async_session.execute(tx_stmt)).scalar_one()
         assert tx.amount == Decimal("3000.00")
+
+    @pytest.mark.asyncio
+    async def test_gambling_13_percent_tax_and_cooldown_mechanics(
+        self, async_session: AsyncSession, sample_user: User
+    ):
+        """Verifies 13% tax deduction on net profit and match simulation settlement."""
+        acc = await BankingService.get_user_main_account(async_session, sample_user.id)
+        acc.balance = Decimal("50000.00")
+        await async_session.commit()
+
+        # 1. Match with future countdown (2 minutes)
+        now = datetime.datetime.now()
+        match = await BookmakerService.create_match(
+            async_session,
+            sport="FOOTBALL",
+            team_home="Реал Мадрид",
+            team_away="Зенит",
+            scheduled_at=now + datetime.timedelta(seconds=120),
+        )
+        await async_session.commit()
+
+        # 2. Place bet: 10,000 at odds
+        bet = await BookmakerService.place_bet(
+            async_session,
+            user_id=sample_user.id,
+            match_id=match.id,
+            bet_type="HOME",
+            amount=Decimal("10000.00"),
+        )
+        await async_session.commit()
+
+        # 3. Simulate and settle with 13% tax
+        await BookmakerService.play_match(async_session, match.id, force_score_home=2, force_score_away=0)
+        settled = await BookmakerService.settle_match(async_session, match.id)
+        await async_session.commit()
+
+        assert settled[0].status == "WON"
+        await async_session.refresh(acc)
+
+        gross = bet.potential_payout
+        profit = max(Decimal("0.00"), gross - Decimal("10000.00"))
+        tax = (profit * Decimal("0.13")).quantize(Decimal("0.01"))
+        expected_payout = gross - tax
+
+        assert acc.balance == Decimal("40000.00") + expected_payout
 
 
 class TestDuelsServiceFeatures:
@@ -1485,7 +1534,10 @@ class TestRealWorldGamblingE2EScenario:
         await async_session.commit()
 
         assert settled[0].status == "WON"
-        expected_bet_payout = bet.potential_payout
+        gross_bet_payout = bet.potential_payout
+        net_bet_profit = max(Decimal("0.00"), gross_bet_payout - bet.amount)
+        tax = (net_bet_profit * Decimal("0.13")).quantize(Decimal("0.01"))
+        expected_bet_payout = gross_bet_payout - tax
         await async_session.refresh(a_acc)
         assert a_acc.balance == Decimal("45000000.00") + expected_bet_payout
 

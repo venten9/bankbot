@@ -287,6 +287,19 @@ async def handle_bet_stake_preset_callback(
 
     amount = PRESET_MAP.get(preset_key, Decimal("10000.00"))
 
+    main_acc = await BankingService.get_user_main_account(session, user.id)
+    bal = main_acc.balance if main_acc else Decimal("0.00")
+
+    # Responsible gaming: max 25% of balance per bet (for balances > 400 ₽)
+    if bal > Decimal("400.00") and amount > (bal * Decimal("0.25")):
+        max_allowed = (bal * Decimal("0.25")).quantize(Decimal("0.01"))
+        await query.answer(
+            f"⚠️ Ответственная игра: ставка не может превышать 25% от вашего баланса ({max_allowed:,.2f} ₽)!\n"
+            f"Сделайте меньшую ставку или заработайте больше на работе.",
+            show_alert=True,
+        )
+        return
+
     try:
         bet = await BookmakerService.place_bet(
             session=session,
@@ -295,6 +308,12 @@ async def handle_bet_stake_preset_callback(
             bet_type=bet_type,
             amount=amount,
         )
+        # Match countdown timer: schedule 90 seconds into future if not already set
+        now = datetime.datetime.now()
+        if match.status == "SCHEDULED" and (match.scheduled_at is None or match.scheduled_at <= now):
+            match.scheduled_at = now + datetime.timedelta(seconds=90)
+            await session.flush()
+
         main_acc = await BankingService.get_user_main_account(session, user.id)
         bal = main_acc.balance if main_acc else Decimal("0.00")
         receipt_text = format_bet_placed(bet, match, bal)
@@ -340,6 +359,19 @@ async def handle_bet_custom_amount_message(
         await state.clear()
         return
 
+    main_acc = await BankingService.get_user_main_account(session, user.id)
+    bal = main_acc.balance if main_acc else Decimal("0.00")
+
+    # Responsible gaming: max 25% of balance per bet (for balances > 400 ₽)
+    if bal > Decimal("400.00") and amount > (bal * Decimal("0.25")):
+        max_allowed = (bal * Decimal("0.25")).quantize(Decimal("0.01"))
+        await message.answer(
+            f"⚠️ <b>Правило ответственной игры:</b> ставка не может превышать 25% от вашего баланса "
+            f"(максимум для вас: <b>{max_allowed:,.2f} ₽</b>).\n\n"
+            f"<i>Это защищает от быстрого банкротства. Введите меньшую сумму или заработайте больше на карьере!</i>"
+        )
+        return
+
     try:
         bet = await BookmakerService.place_bet(
             session=session,
@@ -348,6 +380,11 @@ async def handle_bet_custom_amount_message(
             bet_type=bet_type,
             amount=amount,
         )
+        # Match countdown timer: schedule 90 seconds into future if not already set
+        now = datetime.datetime.now()
+        if match.status == "SCHEDULED" and (match.scheduled_at is None or match.scheduled_at <= now):
+            match.scheduled_at = now + datetime.timedelta(seconds=90)
+            await session.flush()
         await state.clear()
         main_acc = await BankingService.get_user_main_account(session, user.id)
         bal = main_acc.balance if main_acc else Decimal("0.00")
@@ -377,6 +414,18 @@ async def handle_match_simulation_callback(
 
     # Simulate gameplay if not finished
     if match.status not in ("FINISHED", "CANCELLED"):
+        now = datetime.datetime.now()
+        if match.scheduled_at and match.scheduled_at > now:
+            time_left = int((match.scheduled_at - now).total_seconds())
+            rem_m = time_left // 60
+            rem_s = time_left % 60
+            await query.answer(
+                f"⏳ Матч еще идет! До финального свистка: {rem_m} мин {rem_s:02d} сек.\n"
+                f"Сходите пока на смену в раздел «Заработок»!",
+                show_alert=True,
+            )
+            return
+
         match = await BookmakerService.play_match(session, match_id)
         await BookmakerService.settle_match(session, match_id)
 

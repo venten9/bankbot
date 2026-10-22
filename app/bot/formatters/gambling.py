@@ -160,7 +160,11 @@ def format_match_simulation(
             b_status = getattr(b, "status", "PENDING")
             b_payout = float(getattr(b, "potential_payout", 0))
             if b_status == "WON":
-                lines.append(f"• 🟢 <b>ВЫИГРЫШ:</b> {b_type} — <b>+{b_payout:,.2f} ₽</b> зачислено на карту!")
+                net_profit = max(0.0, b_payout - b_amt)
+                tax = round(net_profit * 0.13, 2)
+                payout_after_tax = b_payout - tax
+                tax_str = f" (удержан налог НДФЛ 13%: -{tax:,.2f} ₽)" if tax > 0 else ""
+                lines.append(f"• 🟢 <b>ВЫИГРЫШ:</b> {b_type} — <b>+{payout_after_tax:,.2f} ₽</b>{tax_str} зачислено на карту!")
             elif b_status == "LOST":
                 lines.append(f"• 🔴 <b>ПРОИГРЫШ:</b> {b_type} — ставка <b>{b_amt:,.2f} ₽</b> сгорела.")
             else:
@@ -191,6 +195,7 @@ def format_bet_placed(bet: Any, match: Any, new_balance: Decimal | float) -> str
         f"🏆 Возможный выигрыш: <b>{potential:,.2f} ₽</b>",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         f"💳 Остаток на карте: <b>{bal:,.2f} ₽</b>",
+        "⚖️ <i>С чистого выигрыша удерживается налог НДФЛ 13% в бюджет Т-Банка.</i>\n"
         "🔒 <i>Электронный чек зарегистрирован в реестре Т-Банка.</i>",
     ]
     return "\n".join(lines)
