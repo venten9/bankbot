@@ -37,6 +37,8 @@ from app.database.models import (
     UserCashbackSelection,
     UserJob,
     UserProperty,
+    SportsBet,
+    PvPDuel,
 )
 from app.services.card import CardService
 from app.services.investments import InvestmentService
@@ -468,6 +470,8 @@ class AdminService:
                 "cashback_selections": 0,
                 "jobs": 0,
                 "properties": 0,
+                "sports_bets": 0,
+                "pvp_duels": 0,
                 "admin_logs": 0,
                 "deleted_users": 0,
                 "deleted_accounts": 0,
@@ -606,6 +610,30 @@ class AdminService:
             else 0
         )
 
+        del_bets_res = await session.execute(
+            delete(SportsBet).where(SportsBet.user_id.in_(test_user_ids))
+        )
+        deleted_sports_bets = (
+            del_bets_res.rowcount
+            if del_bets_res.rowcount is not None and del_bets_res.rowcount >= 0
+            else 0
+        )
+
+        del_duels_res = await session.execute(
+            delete(PvPDuel).where(
+                or_(
+                    PvPDuel.creator_user_id.in_(test_user_ids),
+                    PvPDuel.opponent_user_id.in_(test_user_ids),
+                    PvPDuel.winner_user_id.in_(test_user_ids),
+                )
+            )
+        )
+        deleted_pvp_duels = (
+            del_duels_res.rowcount
+            if del_duels_res.rowcount is not None and del_duels_res.rowcount >= 0
+            else 0
+        )
+
         # 7. Accounts
         del_acc_res = await session.execute(
             delete(Account).where(Account.user_id.in_(test_user_ids))
@@ -654,6 +682,8 @@ class AdminService:
             "cashback_selections": deleted_cashbacks,
             "jobs": deleted_jobs,
             "properties": deleted_properties,
+            "sports_bets": deleted_sports_bets,
+            "pvp_duels": deleted_pvp_duels,
             "admin_logs": deleted_admin_logs,
             "deleted_users": deleted_users,
             "deleted_accounts": deleted_accounts,

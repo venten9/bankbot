@@ -65,6 +65,12 @@ class User(Base):
     properties: Mapped[list["UserProperty"]] = relationship(
         "UserProperty", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
+    sports_bets: Mapped[list["SportsBet"]] = relationship(
+        "SportsBet", back_populates="user", cascade="all, delete-orphan", lazy="selectin"
+    )
+    created_duels: Mapped[list["PvPDuel"]] = relationship(
+        "PvPDuel", foreign_keys="[PvPDuel.creator_user_id]", back_populates="creator", cascade="all, delete-orphan", lazy="selectin"
+    )
     last_hustle_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     last_daily_spin_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -368,4 +374,109 @@ class UserProperty(Base):
     last_rent_collected_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="properties")
+
+
+class SportsMatch(Base):
+    """Sports match entity for automated simulation and bookmaker betting."""
+
+    __tablename__ = "sports_matches"
+    __table_args__ = (
+        CheckConstraint("sport IN ('FOOTBALL', 'ESPORTS')", name="chk_sports_match_sport"),
+        CheckConstraint(
+            "status IN ('SCHEDULED', 'LIVE', 'FINISHED', 'CANCELLED')",
+            name="chk_sports_match_status",
+        ),
+        CheckConstraint("odds_home >= 1.01", name="chk_sports_match_odds_home"),
+        CheckConstraint("odds_draw >= 1.01", name="chk_sports_match_odds_draw"),
+        CheckConstraint("odds_away >= 1.01", name="chk_sports_match_odds_away"),
+        CheckConstraint("odds_over >= 1.01", name="chk_sports_match_odds_over"),
+        CheckConstraint("odds_under >= 1.01", name="chk_sports_match_odds_under"),
+        CheckConstraint("score_home >= 0", name="chk_sports_match_score_home"),
+        CheckConstraint("score_away >= 0", name="chk_sports_match_score_away"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    sport: Mapped[str] = mapped_column(String(16), index=True, nullable=False)  # FOOTBALL, ESPORTS
+    team_home: Mapped[str] = mapped_column(String(128), nullable=False)
+    team_away: Mapped[str] = mapped_column(String(128), nullable=False)
+    home_rating: Mapped[float] = mapped_column(Float, default=100.0, nullable=False)
+    away_rating: Mapped[float] = mapped_column(Float, default=100.0, nullable=False)
+    odds_home: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    odds_draw: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    odds_away: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    odds_over: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    odds_under: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="SCHEDULED", index=True, nullable=False)
+    score_home: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    score_away: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    events_log: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    scheduled_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now(), index=True, nullable=False)
+    started_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    bets: Mapped[list["SportsBet"]] = relationship(
+        "SportsBet", back_populates="match", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class SportsBet(Base):
+    """Client sports bet wager entity."""
+
+    __tablename__ = "sports_bets"
+    __table_args__ = (
+        CheckConstraint(
+            "bet_type IN ('HOME', 'DRAW', 'AWAY', 'OVER_2_5', 'UNDER_2_5')",
+            name="chk_sports_bet_type",
+        ),
+        CheckConstraint(
+            "amount >= 100.00 AND amount <= 20000000.00",
+            name="chk_sports_bet_amount",
+        ),
+        CheckConstraint("potential_payout >= 0.00", name="chk_sports_bet_potential_payout"),
+        CheckConstraint(
+            "status IN ('PENDING', 'WON', 'LOST', 'REFUNDED')",
+            name="chk_sports_bet_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    match_id: Mapped[str] = mapped_column(String(36), ForeignKey("sports_matches.id", ondelete="CASCADE"), index=True, nullable=False)
+    bet_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    odds: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
+    potential_payout: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="PENDING", index=True, nullable=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="sports_bets")
+    match: Mapped["SportsMatch"] = relationship("SportsMatch", back_populates="bets")
+
+
+class PvPDuel(Base):
+    """PvP high-stakes duel entity: Dice, Coinflip, Russian Roulette."""
+
+    __tablename__ = "pvp_duels"
+    __table_args__ = (
+        CheckConstraint("game_type IN ('DICE', 'COINFLIP', 'ROULETTE')", name="chk_pvp_duel_game_type"),
+        CheckConstraint("stake >= 100.00 AND stake <= 20000000.00", name="chk_pvp_duel_stake"),
+        CheckConstraint("status IN ('OPEN', 'ACCEPTED', 'FINISHED', 'CANCELLED')", name="chk_pvp_duel_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    game_type: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    creator_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    opponent_user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
+    stake: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="OPEN", index=True, nullable=False)
+    creator_roll: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    opponent_roll: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    winner_user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    creator: Mapped["User"] = relationship("User", foreign_keys=[creator_user_id], back_populates="created_duels")
+    opponent: Mapped["User | None"] = relationship("User", foreign_keys=[opponent_user_id])
+    winner: Mapped["User | None"] = relationship("User", foreign_keys=[winner_user_id])
+
 
