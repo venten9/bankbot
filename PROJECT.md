@@ -61,11 +61,11 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Database Models & Schema | `app/database/models.py`, `app/database/__init__.py`, `app/services/admin.py` | none | PLANNED |
-| M2 | Sports Bookmaker Domain Service | `app/services/bookmaker.py` (Catalog, Simulation, Odds, Bets, Settlement) | M1 | PLANNED |
-| M3 | PvP Duels Domain Service | `app/services/duels.py` (Dice, Coinflip, Russian Roulette, Escrow, CAS) | M1 | PLANNED |
-| M4 | Telegram UI & Hub Integration | `app/bot/keyboards/`, `app/bot/formatters/`, `app/bot/routers/`, `bot.py` | M2, M3 | PLANNED |
-| M5 | Automated Tests & Verification | `tests/test_bookmaker_and_duels.py`, full pytest pass, `README.md` | M4 | PLANNED |
+| M1 | Database Models & Schema | `app/database/models.py`, `app/database/__init__.py`, `app/services/admin.py` | none | DONE |
+| M2 | Sports Bookmaker Domain Service | `app/services/bookmaker.py` (Catalog, Simulation, Odds, Bets, Settlement) | M1 | DONE |
+| M3 | PvP Duels Domain Service | `app/services/duels.py` (Dice, Coinflip, Russian Roulette, Escrow, CAS) | M1 | DONE |
+| M4 | Telegram UI & Hub Integration | `app/bot/keyboards/`, `app/bot/formatters/`, `app/bot/routers/`, `bot.py` | M2, M3 | DONE |
+| M5 | Automated Tests & Verification | `tests/test_bookmaker_and_duels.py`, full pytest pass, `README.md` | M4 | IN_PROGRESS |
 
 ## Interface Contracts
 
