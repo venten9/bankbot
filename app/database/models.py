@@ -96,6 +96,9 @@ class Card(Base):
     """Virtual debit card entity with 16-digit Luhn MIR card number and CVV."""
 
     __tablename__ = "cards"
+    __table_args__ = (
+        UniqueConstraint("card_number", name="uq_cards_card_number"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)

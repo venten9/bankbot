@@ -212,3 +212,219 @@ def format_broadcast_preview(text: str, recipient_count: int) -> tuple[str, str]
         "Вы подтверждаете отправку?"
     )
     return preview_box, confirm_text
+
+
+def format_cheat_menu(target_user: User, main_balance: Decimal | float | None = None) -> str:
+    """Format cheat panel dashboard for target user."""
+    full_name = html.escape(target_user.full_name or "Клиент", quote=False)
+    username = f"@{html.escape(target_user.username, quote=False)}" if target_user.username else "—"
+    bal_str = f"{Decimal(str(main_balance)):,.2f} ₽" if main_balance is not None else "—"
+    cb_val = getattr(target_user, "cashback_balance", Decimal("0.00"))
+    cb_str = f"{Decimal(str(cb_val)):,.2f} ₽"
+
+    lines = [
+        "⚡️ <b>Т-Банк: Чит-панель / Накрутка ресурсов</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"Клиент: <b>{full_name}</b> ({username})",
+        f"🆔 Telegram ID: <code>{target_user.telegram_id}</code>",
+        f"💰 Основной счет: <b>{bal_str}</b>",
+        f"🎁 Кэшбэк бонусы: <b>{cb_str}</b>",
+        "",
+        "Выберите желаемую операцию (начисление происходит моментально):",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
+    return "\n".join(lines)
+
+
+def format_cooldown_reset_summary(target_user: User, summary: dict) -> str:
+    """Format summary report of reset cooldown timers."""
+    full_name = html.escape(target_user.full_name or "Клиент", quote=False)
+    username = f"@{html.escape(target_user.username, quote=False)}" if target_user.username else "—"
+    jobs_cnt = summary.get("jobs_reset", 0)
+    rentals_cnt = summary.get("rentals_reset", 0)
+
+    lines = [
+        "⏳ <b>Все таймеры и кулдауны успешно сброшены!</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"Клиент: <b>{full_name}</b> ({username}, ID: <code>{target_user.telegram_id}</code>)",
+        "",
+        "🎰 <b>Колесо Фортуны:</b> бесплатный спин доступен сразу",
+        f"💼 <b>Смены на работе:</b> перемотаны на 3 часа ({jobs_cnt} смен готово к выплате)",
+        f"🏛 <b>Аренда недвижимости:</b> перемотана на 25 часов ({rentals_cnt} объектов готово к выплате)",
+        "⚡️ <b>Шабашки (Hustles):</b> кулдаун сброшен, можно выполнять заказ",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
+    return "\n".join(lines)
+
+
+def format_grant_menu(target_user: User) -> str:
+    """Format asset and stock grant catalog menu."""
+    full_name = html.escape(target_user.full_name or "Клиент", quote=False)
+    username = f"@{html.escape(target_user.username, quote=False)}" if target_user.username else "—"
+
+    lines = [
+        "🎁 <b>Выдача активов и акций (God Mode)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"Получатель: <b>{full_name}</b> ({username}, ID: <code>{target_user.telegram_id}</code>)",
+        "",
+        "Выберите элитный актив или пакет акций для мгновенного начисления без списания средств:",
+        " • <b>Золотой Майбах</b> (+50% зарплата, -30 мин смены)",
+        " • <b>BMW M5</b> (+25% зарплата, -15 мин смены)",
+        " • <b>Особняк на Рублевке</b> (1 000 000 ₽ / сутки пассивный доход)",
+        " • <b>Пентхаус в Сити</b> (300 000 ₽ / сутки пассивный доход)",
+        " • <b>Яхта «Непотопляемый кэшбэк»</b> (коллекционный статус)",
+        " • <b>+1 000 акций</b> выбранной компании в инвестпортфель",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
+    return "\n".join(lines)
+
+
+def format_grant_property_result(target_user: User, item_name: str, category: str, icon: str = "🎁") -> str:
+    """Format confirmation of granted property."""
+    full_name = html.escape(target_user.full_name or "Клиент", quote=False)
+    escaped_item = html.escape(item_name, quote=False)
+    cat_names = {
+        "CAR": "Автомобиль",
+        "REAL_ESTATE": "Недвижимость",
+        "LUXURY": "Коллекционный предмет",
+    }
+    cat_desc = cat_names.get(category, category)
+
+    lines = [
+        "🎉 <b>Актив успешно выдан!</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"Клиент: <b>{full_name}</b> (ID: <code>{target_user.telegram_id}</code>)",
+        f"Категория: <b>{cat_desc}</b>",
+        f"Предмет: {icon} <b>{escaped_item}</b>",
+        "Стоимость списания: <b>0.00 ₽ (подарок администрации)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
+    return "\n".join(lines)
+
+
+def format_grant_stock_result(
+    target_user: User, ticker: str, shares: int, total_shares: int
+) -> str:
+    """Format confirmation of granted stocks."""
+    full_name = html.escape(target_user.full_name or "Клиент", quote=False)
+    escaped_ticker = html.escape(ticker, quote=False)
+
+    lines = [
+        "📈 <b>Акции успешно начислены!</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"Клиент: <b>{full_name}</b> (ID: <code>{target_user.telegram_id}</code>)",
+        f"Тикер: <b>{escaped_ticker}</b>",
+        f"Начислено: <b>+{shares:,} шт.</b>",
+        f"Всего в портфеле: <b>{total_shares:,} шт.</b>",
+        "Стоимость покупки: <b>0.00 ₽ (грант Т-Банка)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ]
+    return "\n".join(lines)
+
+
+def format_market_regulator(stocks: list[Any]) -> str:
+    """Format stock exchange regulator overview."""
+    lines = [
+        "📈 <b>Т-Банк: Регулятор Фондового Рынка (God Mode)</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "Инструменты прямого вмешательства в рыночные котировки:",
+        "",
+    ]
+    for s in stocks:
+        ticker = html.escape(getattr(s, "ticker", str(s)), quote=False)
+        name = html.escape(getattr(s, "name", ticker), quote=False)
+        curr_price = Decimal(str(getattr(s, "current_price", 0)))
+        base_price = Decimal(str(getattr(s, "base_price", curr_price)))
+        delta = curr_price - base_price
+        pct = (delta / base_price * 100) if base_price > 0 else Decimal("0")
+        sign = "+" if delta >= 0 else ""
+        lines.append(f" • <b>{ticker}</b> ({name}): <b>{curr_price:,.2f} ₽</b> (<i>{sign}{pct:.1f}%</i>)")
+
+    lines.extend([
+        "",
+        "🚀 <b>Памп рынка (+50%):</b> моментально разгоняет котировки всех акций.",
+        "📉 <b>Дамп рынка (-50%):</b> снижает цены на 50% (минимум 1.00 ₽).",
+        "💥 <b>Крах биржи (-80%):</b> глубокая коррекция для выгодной закупки.",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ])
+    return "\n".join(lines)
+
+
+def format_market_manipulation_result(action: str, stocks: list[Any]) -> str:
+    """Format summary of market-wide price intervention."""
+    titles = {
+        "PUMP": "🚀 <b>Рыночный Памп (+50%) успешно проведен!</b>",
+        "DUMP": "📉 <b>Рыночный Дамп (-50%) успешно проведен!</b>",
+        "CRASH": "💥 <b>Крах биржи (-80%) успешно проведен!</b>",
+    }
+    header = titles.get(action.upper(), f"⚡️ <b>Манипуляция рынком ({html.escape(action, quote=False)}) проведена!</b>")
+
+    lines = [
+        header,
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "Обновленные котировки акций Т-Инвестиций:",
+        "",
+    ]
+    for s in stocks:
+        ticker = html.escape(getattr(s, "ticker", str(s)), quote=False)
+        price = Decimal(str(getattr(s, "current_price", 0)))
+        lines.append(f" • <b>{ticker}:</b> <code>{price:,.2f} ₽</code>")
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    return "\n".join(lines)
+
+
+def format_stock_manipulation_result(stock: Any, action_or_price: str) -> str:
+    """Format target stock price modification status."""
+    ticker = html.escape(getattr(stock, "ticker", str(stock)), quote=False)
+    name = html.escape(getattr(stock, "name", ticker), quote=False)
+    price = Decimal(str(getattr(stock, "current_price", 0)))
+
+    lines = [
+        f"🎯 <b>Управление акцией {ticker}</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"Компания: <b>{name}</b>",
+        f"Текущая цена: <b>{price:,.2f} ₽</b>",
+        f"Статус операции: <b>{html.escape(action_or_price, quote=False)}</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "Выберите действие или целевую цену:",
+    ]
+    return "\n".join(lines)
+
+
+def format_cleanup_confirmation() -> str:
+    """Format test user cleanup confirmation prompt."""
+    lines = [
+        "🧹 <b>Очистка тестовых пользователей и мок-данных</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "⚠️ <b>Внимание!</b> Будут безвозвратно удалены:",
+        " • Пользователи с Telegram ID: <code>123</code>, <code>8881001</code>, <code>8881002</code>, <code>999888777</code>",
+        " • Пользователи с именами <code>test_*</code> и <code>mock_*</code>",
+        " • Связанные счета, карты, транзакции, выписки, работы и имущество",
+        "",
+        "🛡 <b>Защита администратора:</b>",
+        " • Аккаунт владельца (ID: <code>1302123809</code>) и реальные пользователи защищены от удаления.",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "Вы подтверждаете удаление тестовых данных?",
+    ]
+    return "\n".join(lines)
+
+
+def format_cleanup_result(summary: dict[str, int]) -> str:
+    """Format execution summary after cleaning test users."""
+    lines = [
+        "✅ <b>Очистка тестовых данных успешно завершена!</b>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"👥 Удалено пользователей: <code>{summary.get('users', 0)}</code>",
+        f"💳 Удалено карт: <code>{summary.get('cards', 0)}</code>",
+        f"💰 Удалено счетов: <code>{summary.get('accounts', 0)}</code>",
+        f"📜 Удалено транзакций: <code>{summary.get('transactions', 0)}</code>",
+        f"💼 Удалено работ: <code>{summary.get('jobs', 0)}</code>",
+        f"🏛 Удалено имущества: <code>{summary.get('properties', 0)}</code>",
+        f"📈 Удалено инвестпортфелей: <code>{summary.get('portfolios', 0)}</code>",
+        f"📑 Удалено записей аудита: <code>{summary.get('admin_logs', 0)}</code>",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "🛡 <i>Все данные реальных клиентов сохранены.</i>",
+    ]
+    return "\n".join(lines)
+

@@ -133,3 +133,33 @@ class CardService:
         )
         await session.flush()
         return True
+
+    @classmethod
+    async def change_card_number(
+        cls, session: AsyncSession, user_id: int, new_number: str
+    ) -> Card:
+        """Change a user's card number to a custom 16-digit number."""
+        clean = str(new_number or "").replace(" ", "").replace("-", "").strip()
+        if len(clean) != 16 or not clean.isdigit():
+            raise ValueError("Номер карты должен состоять ровно из 16 цифр.")
+
+        res = await session.execute(select(Card).where(Card.user_id == user_id))
+        card = res.scalars().first()
+        if not card:
+            raise ValueError(f"Карта пользователя {user_id} не найдена.")
+
+        if card.card_number == clean:
+            return card
+
+        dup_res = await session.execute(
+            select(Card).where(Card.card_number == clean, Card.user_id != user_id)
+        )
+        if dup_res.scalars().first() is not None:
+            raise ValueError(
+                "Этот номер карты уже занят другим клиентом. Пожалуйста, выберите другой."
+            )
+
+        card.card_number = clean
+        await session.flush()
+        return card
+

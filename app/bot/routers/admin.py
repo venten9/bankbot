@@ -7,7 +7,7 @@ from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +18,16 @@ from app.bot.formatters.admin import (
     format_admin_dashboard,
     format_admin_user_card,
     format_broadcast_preview,
+    format_cleanup_confirmation,
+    format_cleanup_result,
+    format_cooldown_reset_summary,
+    format_cheat_menu,
+    format_grant_menu,
+    format_grant_property_result,
+    format_grant_stock_result,
+    format_market_manipulation_result,
+    format_market_regulator,
+    format_stock_manipulation_result,
     format_user_ledger_statement,
 )
 from app.bot.keyboards.admin import (
@@ -25,16 +35,24 @@ from app.bot.keyboards.admin import (
     get_admin_back_keyboard,
     get_admin_broadcast_confirm_keyboard,
     get_admin_cancel_keyboard,
+    get_admin_cleanup_confirm_keyboard,
+    get_admin_cheat_keyboard,
     get_admin_dashboard_keyboard,
+    get_admin_grant_keyboard,
     get_admin_ledger_keyboard,
+    get_admin_market_keyboard,
+    get_admin_stock_detail_keyboard,
     get_admin_user_card_keyboard,
 )
 from app.bot.keyboards.reply import get_main_menu_keyboard
 from app.bot.states.states import AdminStates, BroadcastStates
-from app.database.models import Account, Transaction, User
+from app.database.models import Account, Stock, Transaction, User
 from app.services.admin import AdminService
 from app.services.banking import BankingService
+from app.services.investments import InvestmentService
+from app.services.property import _PROPERTY_INDEX
 from app.services.transfers import InsufficientFundsError
+
 
 logger = logging.getLogger(__name__)
 
@@ -832,8 +850,420 @@ async def handle_confirm_broadcast(
 
 
 # ==============================================================================
+# 6. Admin Superpowers, Cheats, Grants, Market, and Cleanup (Authorized Admins)
+# ==============================================================================
+
+@admin_router.callback_query(F.data == "admin:cheat:menu", IsAdminFilter())
+async def handle_cheat_menu_self(
+    query: CallbackQuery, session: AsyncSession, state: FSMContext
+) -> None:
+    """Open cheat panel for administrator self-top-up."""
+    await state.clear()
+    admin_id = query.from_user.id
+    user_res = await session.execute(
+        select(User)
+        .where(User.telegram_id == admin_id)
+        .options(selectinload(User.accounts))
+    )
+    user = user_res.scalars().first()
+    if not user:
+        await query.answer("Профиль администратора не найден.", show_alert=True)
+        return
+    overview = await BankingService.get_user_overview(session, user.id)
+    text = format_cheat_menu(user, overview.get("main_balance"))
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_cheat_keyboard(user.id))
+    await query.answer()
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:cheat:user:(\d+)$"), IsAdminFilter())
+async def handle_cheat_menu_user(
+    query: CallbackQuery, session: AsyncSession, state: FSMContext
+) -> None:
+    """Open cheat panel for inspected target user."""
+    await state.clear()
+    match = query.data.split(":")[-1]
+    target_uid = int(match)
+    user_res = await session.execute(
+        select(User)
+        .where((User.id == target_uid) | (User.telegram_id == target_uid))
+        .options(selectinload(User.accounts))
+    )
+    user = user_res.scalars().first()
+    if not user:
+        await query.answer("Пользователь не найден.", show_alert=True)
+        return
+    overview = await BankingService.get_user_overview(session, user.id)
+    text = format_cheat_menu(user, overview.get("main_balance"))
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_cheat_keyboard(user.id))
+    await query.answer()
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:cheat:rub:(\d+):(\d+)$"), IsAdminFilter())
+async def handle_cheat_balance(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Atomically credit preset ruble balance to target user."""
+    parts = query.data.split(":")
+    target_uid = int(parts[3])
+    amount = Decimal(parts[4])
+    try:
+        await AdminService.cheat_balance(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            target_user_id=target_uid,
+            amount=amount,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    user_res = await session.execute(
+        select(User)
+        .where((User.id == target_uid) | (User.telegram_id == target_uid))
+        .options(selectinload(User.accounts))
+    )
+    user = user_res.scalars().first()
+    overview = await BankingService.get_user_overview(session, user.id) if user else {}
+    if user and query.message:
+        text = format_cheat_menu(user, overview.get("main_balance"))
+        await query.message.edit_text(text=text, reply_markup=get_admin_cheat_keyboard(user.id))
+    await query.answer(f"✅ Успешно начислено +{amount:,.0f} ₽!", show_alert=True)
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:cheat:cb:(\d+):(\d+)$"), IsAdminFilter())
+async def handle_cheat_cashback(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Atomically credit preset cashback points to target user."""
+    parts = query.data.split(":")
+    target_uid = int(parts[3])
+    amount = Decimal(parts[4])
+    try:
+        await AdminService.cheat_cashback(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            target_user_id=target_uid,
+            amount=amount,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    user_res = await session.execute(
+        select(User)
+        .where((User.id == target_uid) | (User.telegram_id == target_uid))
+        .options(selectinload(User.accounts))
+    )
+    user = user_res.scalars().first()
+    overview = await BankingService.get_user_overview(session, user.id) if user else {}
+    if user and query.message:
+        text = format_cheat_menu(user, overview.get("main_balance"))
+        await query.message.edit_text(text=text, reply_markup=get_admin_cheat_keyboard(user.id))
+    await query.answer(f"🎁 Успешно начислено +{amount:,.0f} баллов кэшбэка!", show_alert=True)
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:cheat:reset_cd:(\d+)$"), IsAdminFilter())
+async def handle_cheat_reset_cooldowns(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Fast-forward all timers and cooldowns for target user."""
+    parts = query.data.split(":")
+    target_uid = int(parts[3])
+    try:
+        summary = await AdminService.reset_cooldowns(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            target_user_id=target_uid,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    user_res = await session.execute(
+        select(User).where((User.id == target_uid) | (User.telegram_id == target_uid))
+    )
+    user = user_res.scalars().first()
+    if user and query.message:
+        text = format_cooldown_reset_summary(user, summary)
+        await query.message.edit_text(text=text, reply_markup=get_admin_cheat_keyboard(user.id))
+    await query.answer("⏳ Все кулдауны и таймеры успешно сброшены!", show_alert=True)
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:grant:user:(\d+)$"), IsAdminFilter())
+async def handle_grant_menu(
+    query: CallbackQuery, session: AsyncSession, state: FSMContext
+) -> None:
+    """Open asset and stock grant catalog."""
+    await state.clear()
+    target_uid = int(query.data.split(":")[-1])
+    user_res = await session.execute(
+        select(User).where((User.id == target_uid) | (User.telegram_id == target_uid))
+    )
+    user = user_res.scalars().first()
+    if not user:
+        await query.answer("Пользователь не найден.", show_alert=True)
+        return
+    text = format_grant_menu(user)
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_grant_keyboard(user.id))
+    await query.answer()
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:grant:prop:(\d+):([a-z0-9_]+)$"), IsAdminFilter())
+async def handle_grant_property(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Grant elite car, real estate, or luxury item to target user."""
+    parts = query.data.split(":")
+    target_uid = int(parts[3])
+    item_id = parts[4]
+    try:
+        prop = await AdminService.grant_property(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            target_user_id=target_uid,
+            item_id=item_id,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    user_res = await session.execute(
+        select(User).where((User.id == target_uid) | (User.telegram_id == target_uid))
+    )
+    user = user_res.scalars().first()
+    item = _PROPERTY_INDEX.get(item_id)
+    item_name = item.name if item else item_id
+    cat = item.category if item else prop.category
+    icon = item.icon if item else "🎁"
+
+    if user and query.message:
+        text = format_grant_property_result(user, item_name, cat, icon)
+        await query.message.edit_text(text=text, reply_markup=get_admin_grant_keyboard(user.id))
+    await query.answer(f"🎁 Выдано: {item_name}!", show_alert=True)
+
+
+async def _resolve_stock_ticker(session: AsyncSession, ticker: str) -> str:
+    """Resolve stock ticker with fallback aliases for human-friendly names."""
+    clean = ticker.strip().upper()
+    await InvestmentService.init_stocks(session)
+    res = await session.execute(
+        select(Stock).where(func.upper(Stock.ticker) == clean)
+    )
+    if res.scalars().first():
+        return clean
+    aliases = {
+        "SHAURMA": "SHAW",
+        "SPICHKI": "MTCH",
+        "BOBR": "BBRS",
+        "BOBRY": "BBRS",
+        "DIVAN": "DVAN",
+        "GRECHKA": "GRECH",
+        "SVET": "MYK",
+    }
+    return aliases.get(clean, clean)
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:grant:stock:(\d+):([A-Za-z0-9_]+)$"), IsAdminFilter())
+async def handle_grant_stocks(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Grant +1000 shares of target stock ticker to user's portfolio."""
+    parts = query.data.split(":")
+    target_uid = int(parts[3])
+    raw_ticker = parts[4].upper()
+    ticker = await _resolve_stock_ticker(session, raw_ticker)
+    try:
+        portfolio = await AdminService.grant_stocks(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            target_user_id=target_uid,
+            ticker=ticker,
+            shares=1000,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    user_res = await session.execute(
+        select(User).where((User.id == target_uid) | (User.telegram_id == target_uid))
+    )
+    user = user_res.scalars().first()
+    if user and query.message:
+        text = format_grant_stock_result(user, ticker, 1000, portfolio.shares)
+        await query.message.edit_text(text=text, reply_markup=get_admin_grant_keyboard(user.id))
+    await query.answer(f"📈 Начислено +1 000 акций {ticker}!", show_alert=True)
+
+
+@admin_router.callback_query(F.data == "admin:market:menu", IsAdminFilter())
+async def handle_market_menu(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Open stock market regulator dashboard."""
+    await InvestmentService.init_stocks(session)
+    res = await session.execute(select(Stock))
+    stocks = list(res.scalars().all())
+    text = format_market_regulator(stocks)
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_market_keyboard(stocks))
+    await query.answer()
+
+
+@admin_router.callback_query(F.data.in_(["admin:market:pump", "admin:market:dump", "admin:market:crash"]), IsAdminFilter())
+async def handle_market_global_action(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Execute market-wide pump, dump, or crash."""
+    action = query.data.split(":")[-1].upper()
+    try:
+        stocks = await AdminService.manipulate_market(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            action=action,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    text = format_market_manipulation_result(action, stocks)
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_market_keyboard(stocks))
+    action_alerts = {
+        "PUMP": "🚀 Памп рынка (+50%) выполнен!",
+        "DUMP": "📉 Дамп рынка (-50%) выполнен!",
+        "CRASH": "💥 Крах биржи (-80%) выполнен!",
+    }
+    await query.answer(action_alerts.get(action, "Операция выполнена!"), show_alert=True)
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:market:stock:([A-Za-z0-9_]+)$"), IsAdminFilter())
+async def handle_market_stock_inspect(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Inspect and manage a specific stock ticker."""
+    raw_ticker = query.data.split(":")[-1].upper()
+    ticker = await _resolve_stock_ticker(session, raw_ticker)
+    res = await session.execute(
+        select(Stock).where(func.upper(Stock.ticker) == ticker)
+    )
+    stock = res.scalars().first()
+    if not stock:
+        await query.answer(f"Акция {raw_ticker} не найдена.", show_alert=True)
+        return
+    text = format_stock_manipulation_result(stock, "Готов к изменению")
+    if query.message:
+        await query.message.edit_text(
+            text=text,
+            reply_markup=get_admin_stock_detail_keyboard(stock.ticker, stock.current_price),
+        )
+    await query.answer()
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:market:stock:([A-Za-z0-9_]+):(pump|dump)$"), IsAdminFilter())
+async def handle_market_stock_action(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Execute pump (+25%) or dump (-25%) on a single stock."""
+    parts = query.data.split(":")
+    raw_ticker = parts[3].upper()
+    action = parts[4].upper()
+    ticker = await _resolve_stock_ticker(session, raw_ticker)
+    try:
+        stock = await AdminService.manipulate_stock(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            ticker=ticker,
+            action_or_price=action,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    text = format_stock_manipulation_result(stock, f"Действие: {action} ({stock.current_price:.2f} ₽)")
+    if query.message:
+        await query.message.edit_text(
+            text=text,
+            reply_markup=get_admin_stock_detail_keyboard(stock.ticker, stock.current_price),
+        )
+    await query.answer(f"✅ {ticker}: {action} завершен -> {stock.current_price:.2f} ₽!", show_alert=True)
+
+
+@admin_router.callback_query(F.data.regexp(r"^admin:market:stock:([A-Za-z0-9_]+):p:(\d+(?:\.\d+)?)$"), IsAdminFilter())
+async def handle_market_stock_set_price(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Set exact target price for a single stock."""
+    parts = query.data.split(":")
+    raw_ticker = parts[3].upper()
+    target_price = Decimal(parts[5])
+    ticker = await _resolve_stock_ticker(session, raw_ticker)
+    try:
+        stock = await AdminService.set_stock_price(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+            ticker=ticker,
+            target_price=target_price,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка: {e}", show_alert=True)
+        return
+
+    text = format_stock_manipulation_result(stock, f"Установлена цена: {stock.current_price:.2f} ₽")
+    if query.message:
+        await query.message.edit_text(
+            text=text,
+            reply_markup=get_admin_stock_detail_keyboard(stock.ticker, stock.current_price),
+        )
+    await query.answer(f"🎯 {ticker}: цена установлена в {stock.current_price:.2f} ₽!", show_alert=True)
+
+
+
+@admin_router.callback_query(F.data == "admin:cleanup:test_users", IsAdminFilter())
+async def handle_cleanup_prompt(
+    query: CallbackQuery
+) -> None:
+    """Show database cleanup confirmation dialogue."""
+    text = format_cleanup_confirmation()
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_cleanup_confirm_keyboard())
+    await query.answer()
+
+
+@admin_router.callback_query(F.data == "admin:cleanup:confirm", IsAdminFilter())
+async def handle_cleanup_execute(
+    query: CallbackQuery, session: AsyncSession
+) -> None:
+    """Execute purge of mock test user accounts and cascade child records."""
+    try:
+        summary = await AdminService.cleanup_test_users(
+            session=session,
+            admin_telegram_id=query.from_user.id,
+        )
+        await session.commit()
+    except Exception as e:
+        await query.answer(f"Ошибка при очистке: {e}", show_alert=True)
+        return
+
+    text = format_cleanup_result(summary)
+    if query.message:
+        await query.message.edit_text(text=text, reply_markup=get_admin_dashboard_keyboard())
+    await query.answer(f"🧹 Удалено {summary.get('users', 0)} тестовых профилей!", show_alert=True)
+
+
+# ==============================================================================
 # 7. Unauthorized RBAC Fallbacks (MUST BE AT THE BOTTOM)
 # ==============================================================================
+
 
 @admin_router.message(Command("admin"))
 async def handle_unauthorized_admin_command(message: Message) -> None:

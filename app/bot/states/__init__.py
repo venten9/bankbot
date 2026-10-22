@@ -3,6 +3,8 @@
 from app.bot.states.states import (
     AdminStates,
     BroadcastStates,
+    CardState,
+    CardStates,
     CashbackStates,
     InvestStates,
     SavingsStates,
@@ -12,8 +14,11 @@ from app.bot.states.states import (
 __all__ = [
     "AdminStates",
     "BroadcastStates",
+    "CardState",
+    "CardStates",
     "CashbackStates",
     "InvestStates",
     "SavingsStates",
     "TransferStates",
 ]
+

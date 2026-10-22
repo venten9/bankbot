@@ -84,16 +84,15 @@ class TransferService:
         # 2. Check 16-digit Card Number
         stripped_card = clean_query.replace(" ", "").replace("-", "")
         if len(stripped_card) == 16 and stripped_card.isdigit():
-            if CardService.validate_luhn(stripped_card):
-                card_res = await session.execute(
-                    select(Card).where(Card.card_number == stripped_card)
+            card_res = await session.execute(
+                select(Card).where(Card.card_number == stripped_card)
+            )
+            card = card_res.scalars().first()
+            if card:
+                acc_res = await session.execute(
+                    select(Account).where(Account.id == card.account_id)
                 )
-                card = card_res.scalars().first()
-                if card:
-                    acc_res = await session.execute(
-                        select(Account).where(Account.id == card.account_id)
-                    )
-                    return acc_res.scalars().first()
+                return acc_res.scalars().first()
 
         # 3. Check Telegram @username
         if clean_query.startswith("@"):

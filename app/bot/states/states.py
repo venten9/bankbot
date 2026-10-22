@@ -38,3 +38,12 @@ class BroadcastStates(StatesGroup):
     """Admin emergency announcement broadcast flow."""
     waiting_for_message = State()
     confirm_broadcast = State()
+
+
+class CardState(StatesGroup):
+    """Card customization FSM flow."""
+    waiting_for_custom_number = State()
+
+
+CardStates = CardState
+
