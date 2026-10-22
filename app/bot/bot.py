@@ -12,6 +12,7 @@ from app.bot.routers.card import card_router
 from app.bot.routers.cashback import cashback_router
 from app.bot.routers.common import common_router
 from app.bot.routers.invest import invest_router
+from app.bot.routers.gambling import gambling_router
 from app.bot.routers.jobs import jobs_router
 from app.bot.routers.property import property_router
 from app.bot.routers.savings import savings_router
@@ -62,6 +63,7 @@ def create_dispatcher(
         invest_router,
         cashback_router,
         jobs_router,
+        gambling_router,
         property_router,
         wheel_router,
     ])

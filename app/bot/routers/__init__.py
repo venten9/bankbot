@@ -3,6 +3,7 @@
 from app.bot.routers.card import card_router
 from app.bot.routers.cashback import cashback_router
 from app.bot.routers.common import common_router
+from app.bot.routers.gambling import gambling_router
 from app.bot.routers.invest import invest_router
 from app.bot.routers.jobs import jobs_router
 from app.bot.routers.property import property_router
@@ -14,6 +15,7 @@ __all__ = [
     "card_router",
     "cashback_router",
     "common_router",
+    "gambling_router",
     "invest_router",
     "jobs_router",
     "property_router",

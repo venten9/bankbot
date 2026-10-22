@@ -31,6 +31,8 @@ jobs_router = Router(name="jobs")
 
 @jobs_router.message(Command("jobs"))
 @jobs_router.message(Command("work"))
+@jobs_router.message(Command("zarabotok"))
+@jobs_router.message(F.text == "💼 Заработок")
 @jobs_router.message(F.text == "💼 Работа и бизнес")
 async def handle_jobs_menu(
     message: Message,

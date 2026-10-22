@@ -54,7 +54,8 @@ def format_career_dashboard(
     user_display = html.escape(user.full_name or user.username or f"Клиент #{user.id}", quote=False)
 
     lines = [
-        "💼 <b>Т-Банк Карьера и Бизнес</b>",
+        "💼 <b>Т-Банк Заработок & Карьерный Хаб</b>",
+        "<i>(Т-Банк Карьера и Бизнес)</i>",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         f"👤 Сотрудник: <b>{user_display}</b>",
         f"📌 Занято вакансий: <b>{len(active_jobs)}/2</b>\n",
@@ -117,7 +118,12 @@ def format_career_dashboard(
     else:
         lines.append("🎲 <b>Быстрые шабашки</b>: ⚡️ <b>Доступны прямо сейчас!</b>")
 
-    lines.append("\n<i>Совмещайте до 2 работ, растите по карьерной лестнице и зарабатывайте на шабашках!</i>")
+    # Quick navigation portal section
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("⚽️ <b>Т-Букмекер</b>: Экспрессы и ординары до 20 000 000 ₽")
+    lines.append("🎲 <b>PvP Арена</b>: Кости, монетка, русская рулетка")
+    lines.append("⚡️ <b>Шабашки</b>: Быстрый заработок каждые 15 минут\n")
+    lines.append("<i>Совмещайте до 2 работ, растите по карьерной лестнице и зарабатывайте на ставках и шабашках!</i>")
     return "\n".join(lines)
 
 

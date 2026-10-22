@@ -67,19 +67,39 @@ def get_jobs_menu_keyboard(
                     )
                 ])
 
-    # 2. General Career & Hustle Actions
+    # 2. Main «Заработок» Hub Core Portals
     buttons.append([
         InlineKeyboardButton(
-            text="🎲 Быстрая шабашка",
+            text="💼 Мои работы и смены",
+            callback_data="jobs:market" if not active_jobs else "jobs:menu",
+        ),
+        InlineKeyboardButton(
+            text="⚡️ Быстрая шабашка",
             callback_data="jobs:hustle",
         ),
+    ])
+    buttons.append([
+        InlineKeyboardButton(
+            text="⚽️ Букмекер (Ставки до 20M ₽)",
+            callback_data="bet:menu",
+        ),
+    ])
+    buttons.append([
+        InlineKeyboardButton(
+            text="🎲 PvP Дуэли и Азарт",
+            callback_data="duel:menu",
+        ),
+    ])
+
+    # 3. Vacancy catalog button
+    buttons.append([
         InlineKeyboardButton(
             text="📋 Биржа вакансий",
             callback_data="jobs:market",
         ),
     ])
 
-    # 3. Navigation row (Refresh & Back to Main Bank Menu)
+    # 4. Navigation row (Refresh & Back to Main Bank Menu)
     buttons.append([
         InlineKeyboardButton(
             text="🔄 Обновить",
