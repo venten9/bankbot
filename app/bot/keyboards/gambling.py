@@ -46,10 +46,13 @@ def get_bookmaker_menu_keyboard(
             )
         ])
 
-    # Action row: My bets & Refresh
+    # Action row: My bets, Refresh & Randomize line
     buttons.append([
         InlineKeyboardButton(text="📋 Мои ставки", callback_data="bet:my"),
         InlineKeyboardButton(text="🔄 Обновить", callback_data="bet:menu"),
+    ])
+    buttons.append([
+        InlineKeyboardButton(text="🎲 Новая линия матчей", callback_data="bet:gen"),
     ])
 
     # Back to Zarabotok Hub

@@ -80,6 +80,7 @@ from app.bot.routers.gambling import (
     handle_duel_view_callback,
     handle_duels_command,
     handle_duels_menu_callback,
+    handle_generate_random_line_callback,
     handle_match_detail_callback,
     handle_match_simulation_callback,
     handle_my_bets_callback,
@@ -307,6 +308,22 @@ class TestBookmakerBettingAndSimulation:
 
         upcoming = await BookmakerService.get_upcoming_matches(async_session, sport="FOOTBALL")
         assert any(m.id == match.id for m in upcoming)
+
+    @pytest.mark.asyncio
+    async def test_seed_upcoming_matches_randomization(self, async_session: AsyncSession):
+        """Verifies seed_upcoming_matches dynamically pairs teams and generates valid odds."""
+        seeded = await BookmakerService.seed_upcoming_matches(async_session, count_football=3, count_esports=2)
+        assert len(seeded) == 5
+        football_matches = [m for m in seeded if m.sport == "FOOTBALL"]
+        esports_matches = [m for m in seeded if m.sport == "ESPORTS"]
+        assert len(football_matches) == 3
+        assert len(esports_matches) == 2
+        for m in seeded:
+            assert m.status == "SCHEDULED"
+            assert m.odds_home >= Decimal("1.05")
+            assert m.odds_draw >= Decimal("1.05")
+            assert m.odds_away >= Decimal("1.05")
+            assert m.team_home != m.team_away
 
     def test_simulate_match_events_chronological_timeline(self):
         """Verifies 90-minute event simulation generates ordered timestamps and authentic event descriptions."""
@@ -939,6 +956,10 @@ class TestZarabotokUIAndKeyboards:
         # bet:menu
         cb_bet = callback_factory("bet:menu", user_id=sample_user.telegram_id)
         await handle_bet_menu_callback(cb_bet, session=async_session, user=sample_user)
+
+        # bet:gen
+        cb_gen = callback_factory("bet:gen", user_id=sample_user.telegram_id)
+        await handle_generate_random_line_callback(cb_gen, session=async_session, user=sample_user)
 
         # bet:f:FOOTBALL
         cb_f = callback_factory("bet:f:FOOTBALL", user_id=sample_user.telegram_id)

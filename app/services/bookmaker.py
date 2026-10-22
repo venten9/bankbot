@@ -971,22 +971,65 @@ class BookmakerService:
         return pending_bets
 
     @classmethod
-    async def seed_upcoming_matches(cls, session: AsyncSession) -> list[SportsMatch]:
-        """Seed initial realistic upcoming football and esports matches."""
-        featured = [
-            ("FOOTBALL", "Реал Мадрид", "Манчестер Сити", 2),
-            ("FOOTBALL", "Бавария", "Барселона", 4),
-            ("FOOTBALL", "Зенит", "Спартак", 6),
-            ("FOOTBALL", "ЦСКА", "Динамо", 8),
-            ("ESPORTS", "Team Spirit", "NAVI", 3),
-            ("ESPORTS", "Team Vitality", "FaZe Clan", 5),
-        ]
-        created = []
+    async def seed_upcoming_matches(
+        cls,
+        session: AsyncSession,
+        count_football: int = 4,
+        count_esports: int = 2,
+    ) -> list[SportsMatch]:
+        """Seed randomized upcoming football and esports matches with dynamic pairings and calculated odds."""
+        # 1. Randomize football matchups from catalog
+        shuffled_fb = list(cls.FOOTBALL_TEAMS)
+        random.shuffle(shuffled_fb)
+
+        # 2. Randomize esports matchups from catalog
+        shuffled_es = list(cls.ESPORTS_TEAMS)
+        random.shuffle(shuffled_es)
+
+        created: list[SportsMatch] = []
         now = datetime.datetime.now()
-        for sport, home, away, hours in featured:
-            scheduled_time = now + datetime.timedelta(hours=hours)
+
+        # Generate football matches
+        fb_pairs_count = min(count_football, len(shuffled_fb) // 2)
+        for i in range(fb_pairs_count):
+            t_home = shuffled_fb[2 * i]
+            t_away = shuffled_fb[2 * i + 1]
+
+            # Current form / condition fluctuation (+-1.2 rating)
+            h_rating = round(float(t_home["rating"]) + random.uniform(-1.2, 1.2), 1)
+            a_rating = round(float(t_away["rating"]) + random.uniform(-1.2, 1.2), 1)
+            hours_ahead = (i + 1) * 2
+
             match = await cls.create_match(
-                session, sport=sport, team_home=home, team_away=away, scheduled_at=scheduled_time
+                session,
+                sport="FOOTBALL",
+                team_home=t_home["name"],
+                team_away=t_away["name"],
+                home_rating=h_rating,
+                away_rating=a_rating,
+                scheduled_at=now + datetime.timedelta(hours=hours_ahead),
             )
             created.append(match)
+
+        # Generate esports matches
+        es_pairs_count = min(count_esports, len(shuffled_es) // 2)
+        for j in range(es_pairs_count):
+            t_home = shuffled_es[2 * j]
+            t_away = shuffled_es[2 * j + 1]
+
+            h_rating = round(float(t_home["rating"]) + random.uniform(-1.2, 1.2), 1)
+            a_rating = round(float(t_away["rating"]) + random.uniform(-1.2, 1.2), 1)
+            hours_ahead = (j + 1) * 2 + 1
+
+            match = await cls.create_match(
+                session,
+                sport="ESPORTS",
+                team_home=t_home["name"],
+                team_away=t_away["name"],
+                home_rating=h_rating,
+                away_rating=a_rating,
+                scheduled_at=now + datetime.timedelta(hours=hours_ahead),
+            )
+            created.append(match)
+
         return created

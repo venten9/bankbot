@@ -147,6 +147,27 @@ async def handle_bet_menu_callback(
     await query.answer()
 
 
+@gambling_router.callback_query(F.data == "bet:gen")
+async def handle_generate_random_line_callback(
+    query: CallbackQuery,
+    session: AsyncSession,
+    user: User,
+) -> None:
+    """Generate randomized upcoming football and esports matches with dynamic pairings and odds."""
+    await BookmakerService.seed_upcoming_matches(session)
+    matches = await BookmakerService.get_upcoming_matches(session)
+    user_bets = await BookmakerService.get_user_bets(session, user.id)
+    text = format_bookmaker_menu(matches, total_bets=len(user_bets))
+    markup = get_bookmaker_menu_keyboard(matches, current_filter="ALL")
+
+    if query.message:
+        try:
+            await query.message.edit_text(text=text, reply_markup=markup)
+        except Exception:
+            pass
+    await query.answer("🎲 Сформирована новая случайная линия матчей!", show_alert=False)
+
+
 @gambling_router.callback_query(F.data.startswith("bet:f:"))
 async def handle_bet_filter_callback(
     query: CallbackQuery,
